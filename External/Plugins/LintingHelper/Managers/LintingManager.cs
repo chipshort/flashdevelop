@@ -75,11 +75,20 @@ namespace LintingHelper.Managers
         {
             language = language.ToLower();
 
-            foreach (var linter in GetLinters(language))
+            var counter = 0;
+            var langLinters = GetLinters(language);
+            var results = new List<LintingResult>();
+            foreach (var linter in langLinters)
             {
                 ApplyLint(files, null); //removes cache
-                linter.LintAsync(files, (results) =>
+                linter.LintAsync(files, (res) =>
                 {
+                    counter++;
+                    if (res != null)
+                        results.AddRange(res);
+
+                    if (counter != langLinters.Count) return; //only lint if all linters finished
+
                     ApplyLint(files, results);
                     EventManager.DispatchEvent(linter, new DataEvent(EventType.Command, "LintingManager.FilesLinted", files));
                 });
