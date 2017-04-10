@@ -40,9 +40,10 @@ namespace LintingHelper.Managers
         {
             language = language.ToLower();
 
-            if (linters.ContainsKey(language))
+            List<ILintProvider> list;
+            if (linters.TryGetValue(language, out list))
             {
-                linters[language].Remove(provider);
+                list.Remove(provider);
             }
 
             EventManager.DispatchEvent(provider, new DataEvent(EventType.Command, "LintingManager.LinterUnregistered", language));
@@ -80,7 +81,7 @@ namespace LintingHelper.Managers
                 //remove cache
                 foreach (var file in files)
                 {
-                    UnLintDocument(DocumentManager.FindDocument(file));
+                    UnlintDocument(DocumentManager.FindDocument(file));
                 }
                 linter.LintAsync(files, (results) =>
                 {
@@ -127,7 +128,7 @@ namespace LintingHelper.Managers
             LintDocument(PluginBase.MainForm.CurrentDocument);
         }
 
-        public static void UnLintDocument(ITabbedDocument doc)
+        public static void UnlintDocument(ITabbedDocument doc)
         {
             Cache.RemoveDocument(doc.FileName);
             doc.SciControl.RemoveHighlights();

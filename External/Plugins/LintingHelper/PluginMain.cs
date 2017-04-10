@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using LintingHelper.Managers;
+using ScintillaNet;
 
 namespace LintingHelper
 {
@@ -98,8 +100,16 @@ namespace LintingHelper
             BatchProcessManager.AddBatchProcessor(new BatchProcess.LintProcessor());
             EventManager.AddEventHandler(this, EventType.FileOpen | EventType.FileSave | EventType.FileModify);
 
+            UITools.Manager.OnTextChanged += ManagerOnOnTextChanged;
+
+
             UITools.Manager.OnMouseHover += Scintilla_OnMouseHover;
             UITools.Manager.OnMouseHoverEnd += Scintilla_OnMouseHoverEnd;
+        }
+
+        private void ManagerOnOnTextChanged(ScintillaControl sender, int position, int length, int linesAdded)
+        {
+            LintingManager.Cache.OnTextChange(DocumentManager.FindDocument(sender), position, length, linesAdded);
         }
 
         private void Scintilla_OnMouseHover(ScintillaNet.ScintillaControl sender, int position)
@@ -148,7 +158,7 @@ namespace LintingHelper
             if (!File.Exists(this.settingFilename)) this.SaveSettings();
             else
             {
-                Object obj = ObjectSerializer.Deserialize(this.settingFilename, this.settingObject);
+                object obj = ObjectSerializer.Deserialize(this.settingFilename, this.settingObject);
                 this.settingObject = (Settings)obj;
             }
         }
@@ -178,24 +188,9 @@ namespace LintingHelper
                     break;
                 case EventType.FileModify:
                     var file = ((TextEvent)e).Value;
-                    Managers.LintingManager.UnLintDocument(DocumentManager.FindDocument(file));
+                    //Managers.LintingManager.UnlintDocument(DocumentManager.FindDocument(file));
                     break;
             }
-        }
-
-        private List<string> GetProjectFiles(IProject project)
-        {
-            List<String> files = new List<String>();
-            String[] filters = project.DefaultSearchFilter.Split(';');
-            foreach (String path in project.SourcePaths)
-            {
-                foreach (String filter in filters)
-                {
-                    files.AddRange(Directory.GetFiles(project.GetAbsolutePath(path), filter, SearchOption.AllDirectories));
-                }
-            }
-
-            return files;
         }
     }
 }
