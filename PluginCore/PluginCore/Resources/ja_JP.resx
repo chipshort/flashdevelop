@@ -6336,4 +6336,8 @@ AND - All conditions are met.</value>
     <value>Padding</value>
     <comment>Added after 5.2.0</comment>
   </data>
+  <data name="Label.ContinuationIndent" xml:space="preserve">
+    <value>Continuation indent:</value>
+    <comment>Added after 5.2.0</comment>
+  </data>
 </root>

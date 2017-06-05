@@ -6297,4 +6297,8 @@ AND - 모든 조건을 만족할때.</value>
     <value>Padding</value>
     <comment>Added after 5.2.0</comment>
   </data>
+  <data name="Label.ContinuationIndent" xml:space="preserve">
+    <value>Continuation indent:</value>
+    <comment>Added after 5.2.0</comment>
+  </data>
 </root>

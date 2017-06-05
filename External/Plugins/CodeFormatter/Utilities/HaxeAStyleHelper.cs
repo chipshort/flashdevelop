@@ -42,8 +42,8 @@ namespace CodeFormatter.Utilities
                     return "otbs";
                 case "Google":
                     return "google";
-                //case "Mozilla":
-                //    return "mozilla";
+                case "Mozilla":
+                    return "mozilla";
                 case "Pico":
                     return "pico";
                 case "Lisp":
@@ -85,8 +85,8 @@ namespace CodeFormatter.Utilities
                     return "One True Brace";
                 case "google":
                     return "Google";
-                //case "mozilla":
-                //    return "Mozilla";
+                case "mozilla":
+                    return "Mozilla";
                 case "pico":
                     return "Pico";
                 case "lisp":
@@ -123,13 +123,6 @@ namespace CodeFormatter.Utilities
             {
                 options.Add(new HaxeAStyleOption("--indent=spaces", 4));
             }
-
-            //Not supported by old version of AStyle
-            //if (!options.Exists("--options"))
-            //{
-            //    options.Add(new HaxeAStyleOption("--options", "none"));
-            //}
-
         }
     }
 }

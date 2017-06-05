@@ -28,12 +28,9 @@ namespace CodeFormatter.Dialogs
         private System.Windows.Forms.CheckBox checkForceTabs;
         private System.Windows.Forms.CheckBox checkTabs;
         private System.Windows.Forms.TabPage tabBrackets;
-        private System.Windows.Forms.CheckBox checkIndentCase;
-        private System.Windows.Forms.CheckBox checkIndentSwitches;
         private System.Windows.Forms.Panel pnlSci;
         private System.Windows.Forms.Label lblBracketStyle;
         private System.Windows.Forms.ComboBox cbBracketStyle;
-        private System.Windows.Forms.CheckBox checkIndentConditional;
         private System.Windows.Forms.CheckBox checkAttachClasses;
         private System.Windows.Forms.TabPage tabPadding;
         private System.Windows.Forms.CheckBox checkPadHeaders;
@@ -52,6 +49,10 @@ namespace CodeFormatter.Dialogs
         private System.Windows.Forms.CheckBox checkKeepOneLineBlocks;
         private System.Windows.Forms.CheckBox checkBreakElseifs;
         private System.Windows.Forms.CheckBox checkBreakClosing;
+        private NumericUpDown numIndentContinuation;
+        private Label lblContinuationIndent;
+        private CheckBox checkIndentCase;
+        private CheckBox checkIndentSwitches;
 
         /// <summary>
         /// Required designer variable.
@@ -79,9 +80,6 @@ namespace CodeFormatter.Dialogs
         {
             this.tabControl = new System.Windows.Forms.TabControl();
             this.tabIndents = new System.Windows.Forms.TabPage();
-            this.checkIndentConditional = new System.Windows.Forms.CheckBox();
-            this.checkIndentCase = new System.Windows.Forms.CheckBox();
-            this.checkIndentSwitches = new System.Windows.Forms.CheckBox();
             this.lblIndentSize = new System.Windows.Forms.Label();
             this.numIndentWidth = new System.Windows.Forms.NumericUpDown();
             this.checkForceTabs = new System.Windows.Forms.CheckBox();
@@ -108,12 +106,17 @@ namespace CodeFormatter.Dialogs
             this.pnlSci = new System.Windows.Forms.Panel();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.numIndentContinuation = new System.Windows.Forms.NumericUpDown();
+            this.lblContinuationIndent = new System.Windows.Forms.Label();
+            this.checkIndentSwitches = new System.Windows.Forms.CheckBox();
+            this.checkIndentCase = new System.Windows.Forms.CheckBox();
             this.tabControl.SuspendLayout();
             this.tabIndents.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numIndentWidth)).BeginInit();
             this.tabBrackets.SuspendLayout();
             this.tabPadding.SuspendLayout();
             this.tabFormatting.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numIndentContinuation)).BeginInit();
             this.SuspendLayout();
             // 
             // tabControl
@@ -131,7 +134,8 @@ namespace CodeFormatter.Dialogs
             // 
             // tabIndents
             // 
-            this.tabIndents.Controls.Add(this.checkIndentConditional);
+            this.tabIndents.Controls.Add(this.lblContinuationIndent);
+            this.tabIndents.Controls.Add(this.numIndentContinuation);
             this.tabIndents.Controls.Add(this.checkIndentCase);
             this.tabIndents.Controls.Add(this.checkIndentSwitches);
             this.tabIndents.Controls.Add(this.lblIndentSize);
@@ -146,46 +150,10 @@ namespace CodeFormatter.Dialogs
             this.tabIndents.Text = "Tabs / Indents";
             this.tabIndents.UseVisualStyleBackColor = true;
             // 
-            // checkIndentConditional
-            // 
-            this.checkIndentConditional.AutoSize = true;
-            this.checkIndentConditional.Location = new System.Drawing.Point(6, 119);
-            this.checkIndentConditional.Name = "checkIndentConditional";
-            this.checkIndentConditional.Size = new System.Drawing.Size(166, 17);
-            this.checkIndentConditional.TabIndex = 11;
-            this.checkIndentConditional.Tag = "--indent-preproc-cond";
-            this.checkIndentConditional.Text = "Indent conditional compilation";
-            this.checkIndentConditional.UseVisualStyleBackColor = true;
-            this.checkIndentConditional.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkIndentCase
-            // 
-            this.checkIndentCase.AutoSize = true;
-            this.checkIndentCase.Location = new System.Drawing.Point(6, 96);
-            this.checkIndentCase.Name = "checkIndentCase";
-            this.checkIndentCase.Size = new System.Drawing.Size(116, 17);
-            this.checkIndentCase.TabIndex = 6;
-            this.checkIndentCase.Tag = "--indent-cases";
-            this.checkIndentCase.Text = "Indent case blocks";
-            this.checkIndentCase.UseVisualStyleBackColor = true;
-            this.checkIndentCase.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkIndentSwitches
-            // 
-            this.checkIndentSwitches.AutoSize = true;
-            this.checkIndentSwitches.Location = new System.Drawing.Point(6, 73);
-            this.checkIndentSwitches.Name = "checkIndentSwitches";
-            this.checkIndentSwitches.Size = new System.Drawing.Size(100, 17);
-            this.checkIndentSwitches.TabIndex = 5;
-            this.checkIndentSwitches.Tag = "--indent-switches";
-            this.checkIndentSwitches.Text = "Indent switches";
-            this.checkIndentSwitches.UseVisualStyleBackColor = true;
-            this.checkIndentSwitches.Click += new System.EventHandler(this.check_Click);
-            // 
             // lblIndentSize
             // 
             this.lblIndentSize.AutoSize = true;
-            this.lblIndentSize.Location = new System.Drawing.Point(6, 49);
+            this.lblIndentSize.Location = new System.Drawing.Point(6, 51);
             this.lblIndentSize.Name = "lblIndentSize";
             this.lblIndentSize.Size = new System.Drawing.Size(38, 13);
             this.lblIndentSize.TabIndex = 3;
@@ -193,25 +161,25 @@ namespace CodeFormatter.Dialogs
             // 
             // numIndentWidth
             // 
-            this.numIndentWidth.Location = new System.Drawing.Point(50, 47);
+            this.numIndentWidth.Location = new System.Drawing.Point(133, 49);
             this.numIndentWidth.Maximum = new decimal(new int[] {
-                20,
-                0,
-                0,
-                0});
+            20,
+            0,
+            0,
+            0});
             this.numIndentWidth.Minimum = new decimal(new int[] {
-                2,
-                0,
-                0,
-                0});
+            2,
+            0,
+            0,
+            0});
             this.numIndentWidth.Name = "numIndentWidth";
             this.numIndentWidth.Size = new System.Drawing.Size(40, 20);
             this.numIndentWidth.TabIndex = 2;
             this.numIndentWidth.Value = new decimal(new int[] {
-                4,
-                0,
-                0,
-                0});
+            4,
+            0,
+            0,
+            0});
             this.numIndentWidth.ValueChanged += new System.EventHandler(this.numIndentWidth_ValueChanged);
             // 
             // checkForceTabs
@@ -466,9 +434,9 @@ namespace CodeFormatter.Dialogs
             // 
             // pnlSci
             // 
-            this.pnlSci.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                                                                        | System.Windows.Forms.AnchorStyles.Left)
-                                                                       | System.Windows.Forms.AnchorStyles.Right)));
+            this.pnlSci.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.pnlSci.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.pnlSci.Location = new System.Drawing.Point(292, 28);
             this.pnlSci.Name = "pnlSci";
@@ -497,6 +465,57 @@ namespace CodeFormatter.Dialogs
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
             // 
+            // numIndentContinuation
+            // 
+            this.numIndentContinuation.Location = new System.Drawing.Point(133, 75);
+            this.numIndentContinuation.Maximum = new decimal(new int[] {
+            4,
+            0,
+            0,
+            0});
+            this.numIndentContinuation.Name = "numIndentContinuation";
+            this.numIndentContinuation.Size = new System.Drawing.Size(40, 20);
+            this.numIndentContinuation.TabIndex = 12;
+            this.numIndentContinuation.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.numIndentContinuation.ValueChanged += new System.EventHandler(this.numIndentWidth_ValueChanged);
+            // 
+            // lblContinuationIndent
+            // 
+            this.lblContinuationIndent.AutoSize = true;
+            this.lblContinuationIndent.Location = new System.Drawing.Point(6, 77);
+            this.lblContinuationIndent.Name = "lblContinuationIndent";
+            this.lblContinuationIndent.Size = new System.Drawing.Size(101, 13);
+            this.lblContinuationIndent.TabIndex = 13;
+            this.lblContinuationIndent.Text = "Continuation indent:";
+            // 
+            // checkIndentSwitches
+            // 
+            this.checkIndentSwitches.AutoSize = true;
+            this.checkIndentSwitches.Location = new System.Drawing.Point(6, 101);
+            this.checkIndentSwitches.Name = "checkIndentSwitches";
+            this.checkIndentSwitches.Size = new System.Drawing.Size(100, 17);
+            this.checkIndentSwitches.TabIndex = 5;
+            this.checkIndentSwitches.Tag = "--indent-switches";
+            this.checkIndentSwitches.Text = "Indent switches";
+            this.checkIndentSwitches.UseVisualStyleBackColor = true;
+            this.checkIndentSwitches.Click += new System.EventHandler(this.check_Click);
+            // 
+            // checkIndentCase
+            // 
+            this.checkIndentCase.AutoSize = true;
+            this.checkIndentCase.Location = new System.Drawing.Point(6, 124);
+            this.checkIndentCase.Name = "checkIndentCase";
+            this.checkIndentCase.Size = new System.Drawing.Size(116, 17);
+            this.checkIndentCase.TabIndex = 6;
+            this.checkIndentCase.Tag = "--indent-cases";
+            this.checkIndentCase.Text = "Indent case blocks";
+            this.checkIndentCase.UseVisualStyleBackColor = true;
+            this.checkIndentCase.Click += new System.EventHandler(this.check_Click);
+            // 
             // HaxeAStyleDialog
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -524,6 +543,7 @@ namespace CodeFormatter.Dialogs
             this.tabPadding.PerformLayout();
             this.tabFormatting.ResumeLayout(false);
             this.tabFormatting.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numIndentContinuation)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -570,8 +590,8 @@ namespace CodeFormatter.Dialogs
             cbBracketStyle.DataSource = new[]
             {
                 "Allman", "Java", "Kernighan & Ritchie", "Stroustrup", "Whitesmith", "VTK", "Banner", "GNU", "Linux",
-                "Horstmann", "One True Brace", "Google", /*"Mozilla",*/ "Pico", "Lisp"
-            }; //Mozilla not supported by old version of AStyle
+                "Horstmann", "One True Brace", "Google", "Mozilla", "Pico", "Lisp"
+            };
 
             SetOptions(options);
 
@@ -594,7 +614,8 @@ namespace CodeFormatter.Dialogs
             this.checkFillEmptyLines.Text = TextHelper.GetString("Label.FillEmptyLines");
             this.checkForceTabs.Text = TextHelper.GetString("Label.ForceTabs");
             this.checkIndentCase.Text = TextHelper.GetString("Label.IndentCases");
-            this.checkIndentConditional.Text = TextHelper.GetString("Label.IndentConditionals");
+            //this.checkIndentConditional.Text = TextHelper.GetString("Label.IndentConditionals"); //broken in latest AStyle version
+            this.lblContinuationIndent.Text = TextHelper.GetString("Label.ContinuationIndent");
             this.checkIndentSwitches.Text = TextHelper.GetString("Label.IndentSwitches");
             this.checkKeepOneLineBlocks.Text = TextHelper.GetString("Label.KeepOneLineBlocks");
             this.checkKeepOneLineStatements.Text = TextHelper.GetString("Label.KeepOneLineStatements");
@@ -724,6 +745,10 @@ namespace CodeFormatter.Dialogs
                 checkTabs.Checked = false;
                 numIndentWidth.Value = Convert.ToDecimal(useSpaces.Value);
             }
+
+            HaxeAStyleOption indentCont = options.Find("--indent-continuation"); //not supported by old version of AStyle
+            if (indentCont != null)
+                numIndentContinuation.Value = Convert.ToDecimal(indentCont.Value);
         }
 
         /// <summary>
@@ -787,7 +812,7 @@ namespace CodeFormatter.Dialogs
                     options.Add(new HaxeAStyleOption("--break-blocks"));
                 }
             }
-            //options.Add("--indent-continuation=" + numIndentContinuation.Value); //not supported by old version of AStyle
+            options.Add(new HaxeAStyleOption("--indent-continuation", numIndentContinuation.Value)); //not supported by old version of AStyle
 
             return options;
         }

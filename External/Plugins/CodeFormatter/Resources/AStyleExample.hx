@@ -19,7 +19,8 @@ class AClass
 			trace("Inconsistent system");
 		
 		var a="";
-		var b = "";
+		var b =
+		"";
 		
 		if(true)
 		{ trace("strange code"); }

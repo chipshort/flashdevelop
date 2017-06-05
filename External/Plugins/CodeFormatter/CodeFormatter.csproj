@@ -148,6 +148,9 @@
     <Compile Include="Handlers\ASPrettyPrinter.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Dialogs\HaxeAStyleDialog.resx">
+      <DependentUpon>HaxeAStyleDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Resources\AStyleExample.hx" />
   </ItemGroup>
 </Project>
