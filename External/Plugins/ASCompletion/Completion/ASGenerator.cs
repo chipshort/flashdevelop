@@ -2892,67 +2892,86 @@ namespace ASCompletion.Completion
                 if ((char) sci.CharAt(wordPos) == '(') newMemberType = parameterType;
                 else
                 {
-                    var parCount = 0;
-                    var braCount = 0;
-                    var genCount = 0;
-                    var startPosition = 0;
-                    var typeLength = parameterType.Length;
-                    for (var i = 0; i < typeLength; i++)
+                    var isNativeFunctionType = false;
+                    if (parameterType == "Function")
                     {
-                        string type = null;
-                        var c = parameterType[i];
-                        if (c == '(') parCount++;
-                        else if (c == ')')
+                        if (IsHaxe)
                         {
-                            parCount--;
-                            if (parCount == 0 && braCount == 0 && genCount == 0)
-                            {
-                                type = parameterType.Substring(startPosition, (i + 1) - startPosition);
-                                startPosition = i + 1;
-                            }
+                            var paramType = ASContext.Context.ResolveType(parameterType, callerExpr.InFile);
+                            if (paramType.InFile.Package == "haxe" && paramType.InFile.Module == "Constraints")
+                                isNativeFunctionType = true;
                         }
-                        else if (c == '{') braCount++;
-                        else if (c == '}')
-                        {
-                            braCount--;
-                            if (parCount == 0 && braCount == 0 && genCount == 0)
-                            {
-                                type = parameterType.Substring(startPosition, (i + 1) - startPosition);
-                                startPosition = i + 1;
-                            }
-                        }
-                        else if (c == '<') genCount++;
-                        else if (c == '>' && parameterType[i - 1] != '-')
-                        {
-                            genCount--;
-                            if (parCount == 0 && braCount == 0 && genCount == 0)
-                            {
-                                type = parameterType.Substring(startPosition, (i + 1) - startPosition);
-                                startPosition = i + 1;
-                            }
-                        }
-                        else if (parCount == 0 && braCount == 0 && genCount == 0 && c == '-' && parameterType[i + 1] == '>')
-                        {
-                            if (i > startPosition) type = parameterType.Substring(startPosition, i - startPosition);
-                            startPosition = i + 2;
-                            i++;
-                        }
-                        if (type == null)
-                        {
-                            if (i == typeLength - 1 && i > startPosition) newMemberType = parameterType.Substring(startPosition);
-                            continue;
-                        }
-                        type = cleanType(type);
-                        var parameter = $"parameter{functionParameters.Count}";
-                        if (type.StartsWith('?'))
-                        {
-                            parameter = $"?{parameter}";
-                            type = type.TrimStart('?');
-                        }
-                        if (i == typeLength - 1) newMemberType = type;
-                        else functionParameters.Add(new FunctionParameter(parameter, type, type, callerExpr));
+                        else isNativeFunctionType = true;
                     }
-                    if (functionParameters.Count == 1 && functionParameters[0].paramType == ASContext.Context.Features.voidKey) functionParameters.Clear();
+                    var voidKey = ASContext.Context.Features.voidKey;
+                    if (isNativeFunctionType) newMemberType = voidKey;
+                    else
+                    {
+                        var parCount = 0;
+                        var braCount = 0;
+                        var genCount = 0;
+                        var startPosition = 0;
+                        var typeLength = parameterType.Length;
+                        for (var i = 0; i < typeLength; i++)
+                        {
+                            string type = null;
+                            var c = parameterType[i];
+                            if (c == '(') parCount++;
+                            else if (c == ')')
+                            {
+                                parCount--;
+                                if (parCount == 0 && braCount == 0 && genCount == 0)
+                                {
+                                    type = parameterType.Substring(startPosition, (i + 1) - startPosition);
+                                    startPosition = i + 1;
+                                }
+                            }
+                            else if (c == '{') braCount++;
+                            else if (c == '}')
+                            {
+                                braCount--;
+                                if (parCount == 0 && braCount == 0 && genCount == 0)
+                                {
+                                    type = parameterType.Substring(startPosition, (i + 1) - startPosition);
+                                    startPosition = i + 1;
+                                }
+                            }
+                            else if (c == '<') genCount++;
+                            else if (c == '>' && parameterType[i - 1] != '-')
+                            {
+                                genCount--;
+                                if (parCount == 0 && braCount == 0 && genCount == 0)
+                                {
+                                    type = parameterType.Substring(startPosition, (i + 1) - startPosition);
+                                    startPosition = i + 1;
+                                }
+                            }
+                            else if (parCount == 0 && braCount == 0 && genCount == 0 && c == '-' &&
+                                     parameterType[i + 1] == '>')
+                            {
+                                if (i > startPosition) type = parameterType.Substring(startPosition, i - startPosition);
+                                startPosition = i + 2;
+                                i++;
+                            }
+                            if (type == null)
+                            {
+                                if (i == typeLength - 1 && i > startPosition)
+                                    newMemberType = parameterType.Substring(startPosition);
+                                continue;
+                            }
+                            type = cleanType(type);
+                            var parameter = $"parameter{functionParameters.Count}";
+                            if (type.StartsWith('?'))
+                            {
+                                parameter = $"?{parameter}";
+                                type = type.TrimStart('?');
+                            }
+                            if (i == typeLength - 1) newMemberType = type;
+                            else functionParameters.Add(new FunctionParameter(parameter, type, type, callerExpr));
+                        }
+                        if (functionParameters.Count == 1 && functionParameters[0].paramType == voidKey)
+                            functionParameters.Clear();
+                    }
                 }
                 newMemberType = cleanType(newMemberType);
             }
@@ -3424,8 +3443,8 @@ namespace ASCompletion.Completion
             {
                 pos = sci.WordEndPosition(pos, true);
                 c = line.TrimEnd().Last();
-                resolve = ASComplete.GetExpressionType(sci, c == ']' ? pos + 1 : pos, true, true);
-                if ((resolve.Path == null || !resolve.Path.StartsWith("#")) && resolve.Type != null && !resolve.IsPackage)
+                resolve = ASComplete.GetExpressionType(sci, "]}\"'".Contains(c) || (c == '>' && !bracesRemoved) ? pos + 1 : pos, true, true);
+                if (resolve.Type != null && !resolve.IsPackage)
                 {
                     if (resolve.Type.Name == "Function" && !bracesRemoved)
                     {
@@ -3442,33 +3461,25 @@ namespace ASCompletion.Completion
                                 if (t.Contains("->") && !t.StartsWith('(')) t = $"({t})";
                                 qualifiedName += t;
                             }
-                            resolve.Type.Name = qualifiedName;
+                            resolve = null;
+                            type = new ClassModel {Name = qualifiedName, InFile = FileModel.Ignore};
                         }
+                        else resolve.Member = null;
+                    }
+                    else if (!string.IsNullOrEmpty(resolve.Path) && resolve.Path.EndsWith(".[]"))
                         resolve.Member = null;
-                    }
-                    else if ((resolve.Type.Flags & FlagType.Class) > 0
-                             && resolve.Context?.WordBefore != "new" && resolve.Member == null)
-                    {
-                        type = ctx.ResolveType("Class", inClass.InFile);
-                        resolve = null;
-                    }
                 }
                 word = sci.GetWordFromPosition(pos);
             }
             if (resolve?.Type == null || resolve.Type.IsVoid())
             {
                 c = (char)sci.CharAt(pos);
-                if (c == '"' || c == '\'') type = ctx.ResolveType(features.stringKey, inClass.InFile);
-                else if (c == '}') type = ctx.ResolveType(features.objectKey, inClass.InFile);
-                else if (c == '>') type = ctx.ResolveType("XML", inClass.InFile);
-                else if (c == ']')
+                if (c == ']')
                 {
                     resolve = ASComplete.GetExpressionType(sci, pos + 1);
                     type = resolve.Type ?? ctx.ResolveType(features.arrayKey, inClass.InFile);
                     resolve = null;
                 }
-                else if (word != null && Char.IsDigit(word[0])) type = ctx.ResolveType(features.numberKey, inClass.InFile);
-                else if (word == "true" || word == "false") type = ctx.ResolveType(features.booleanKey, inClass.InFile);
                 if (type != null && type.IsVoid()) type = null;
             }
             if (resolve == null) resolve = new ASResult();

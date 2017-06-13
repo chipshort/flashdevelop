@@ -60,7 +60,7 @@ namespace HaXeContext
             stubFunctionClass.Name = stubFunctionClass.Type = "Function";
             stubFunctionClass.Flags = FlagType.Class;
             stubFunctionClass.Access = Visibility.Public;
-            var funFile = new FileModel();
+            var funFile = new FileModel{Package = "haxe", Module = "Constraints"};
             funFile.Classes.Add(stubFunctionClass);
             stubFunctionClass.InFile = funFile;
 
@@ -251,7 +251,7 @@ namespace HaXeContext
 
             LoadMetadata();
 
-            if (GetCurrentSDKVersion().IsGreaterThanOrEquals(new SemVer("3.3.0"))) features.SpecialPostfixOperators = new[] {'!'};
+            if (GetCurrentSDKVersion() >= "3.3.0") features.SpecialPostfixOperators = new[] {'!'};
             else features.SpecialPostfixOperators = new char[0];
 
             UseGenericsShortNotationChange();
@@ -260,7 +260,7 @@ namespace HaXeContext
         private void UseGenericsShortNotationChange()
         {
             // We may want to create 2 different feature flags for this, but atm it's enough this way
-            features.HasGenericsShortNotation = GetCurrentSDKVersion().IsGreaterThanOrEquals(new SemVer("3")) && hxsettings.UseGenericsShortNotation;
+            features.HasGenericsShortNotation = GetCurrentSDKVersion() >= "3" && hxsettings.UseGenericsShortNotation;
         }
 
         public void LoadMetadata()
@@ -915,8 +915,6 @@ namespace HaXeContext
             if (string.IsNullOrEmpty(cname) || cname == features.voidKey || classPath == null)
                 return ClassModel.VoidClass;
 
-            if (cname == "Function") return stubFunctionClass;
-
             // handle generic types
             if (cname.IndexOf('<') > 0)
             {
@@ -948,6 +946,7 @@ namespace HaXeContext
                             return aClass;
 
                 // search in imported classes
+                var found = false;
                 MemberList imports = ResolveImports(inFile);
                 foreach (MemberModel import in imports)
                 {
@@ -961,9 +960,11 @@ namespace HaXeContext
                             int dotIndex = type.LastIndexOf('.');
                             if (dotIndex > 0) package = type.Substring(0, dotIndex);
                         }
+                        found = true;
                         break;
                     }
                 }
+                if (!found && cname == "Function") return stubFunctionClass;
             }
 
             return GetModel(package, cname, inPackage);
@@ -1224,7 +1225,7 @@ namespace HaXeContext
         internal HaxeComplete GetHaxeComplete(ScintillaControl sci, ASExpr expression, bool autoHide, HaxeCompilerService compilerService)
         {
             var sdkVersion = GetCurrentSDKVersion();
-            if (hxsettings.CompletionMode == HaxeCompletionModeEnum.CompletionServer && sdkVersion.IsGreaterThanOrEquals(new SemVer("3.3.0")))
+            if (hxsettings.CompletionMode == HaxeCompletionModeEnum.CompletionServer && sdkVersion >= "3.3.0")
                 return new HaxeComplete330(sci, expression, autoHide, completionModeHandler, compilerService, sdkVersion);
             return new HaxeComplete(sci, expression, autoHide, completionModeHandler, compilerService, sdkVersion);
         }
@@ -1456,7 +1457,7 @@ namespace HaXeContext
 
         public override bool HandleGotoDeclaration(ScintillaControl sci, ASExpr expression)
         {
-            if (hxsettings.CompletionMode == HaxeCompletionModeEnum.FlashDevelop || GetCurrentSDKVersion().IsOlderThan(new SemVer("3.2.0")))
+            if (hxsettings.CompletionMode == HaxeCompletionModeEnum.FlashDevelop || GetCurrentSDKVersion() < "3.2.0")
                 return false;
 
             var hc = GetHaxeComplete(sci, expression, false, HaxeCompilerService.POSITION);
