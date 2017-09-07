@@ -96,7 +96,7 @@ namespace ASCompletion.Controls
             PluginBase.MainForm.CurrentDocument.SciControl.GotoLine(reference.Line);
         }
 
-        internal static void Show(IEnumerable<Reference> implementors, IEnumerable<Reference> implemented, IEnumerable<Reference> overriders, IEnumerable<Reference> overridden)
+        internal static void Show(Reference[] implementors, Reference[] implemented, Reference[] overriders, Reference[] overridden)
         {
             listView.Hide();
             listView.Items.Clear();
@@ -129,24 +129,37 @@ namespace ASCompletion.Controls
             ListView_MouseEnter(null, null);
         }
 
-        internal static IEnumerable<Reference> ConvertCache(MemberModel member, IEnumerable<ClassModel> list)
+        internal static Reference[] ConvertCache(MemberModel member, HashSet<ClassModel> list)
         {
-            return list.Select(m => new Reference
+            var array = new Reference[list.Count];
+
+            var i = 0;
+            foreach (var m in list)
             {
-                File = m.InFile.FileName,
-                Line = m.Members.Search(member.Name, 0, 0).LineFrom,
-                Type = m.QualifiedName
-            });
+                array[i++] = new Reference
+                {
+                    File = m.InFile.FileName,
+                    Line = m.Members.Search(member.Name, 0, 0).LineFrom,
+                    Type = m.QualifiedName
+                };
+            }
+            return array;
+            //return list.Select(m => new Reference
+            //{
+            //    File = m.InFile.FileName,
+            //    Line = m.Members.Search(member.Name, 0, 0).LineFrom,
+            //    Type = m.QualifiedName
+            //});
         }
 
-        static void AddItems(ListViewGroup group, IEnumerable<Reference> items)
+        static void AddItems(ListViewGroup group, Reference[] items)
         {
-            foreach (var r in items)
+            for (var i = 0; i < items.Length; ++i)
             {
                 var item = new ListViewItem
                 {
-                    Text = r.Type,
-                    Tag = r,
+                    Text = items[i].Type,
+                    Tag = items[i],
                     Group = group
                 };
                 listView.Items.Add(item);
@@ -155,7 +168,7 @@ namespace ASCompletion.Controls
         }
     }
 
-    class Reference
+    struct Reference
     {
         public string Type;
         public string File;
