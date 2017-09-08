@@ -612,7 +612,8 @@ namespace FlashDevelop.Dialogs
         /// </summary>
         private void BrowseButtonClick(Object sender, EventArgs e)
         {
-            VistaFolderBrowserDialog fbd = new VistaFolderBrowserDialog();
+            using (VistaFolderBrowserDialog fbd = new VistaFolderBrowserDialog())
+            {
             fbd.Multiselect = true;
             String curDir = this.folderComboBox.Text;
             if (curDir == "<Project>")
@@ -630,6 +631,7 @@ namespace FlashDevelop.Dialogs
                 this.folderComboBox.Text = String.Join(";", fbd.SelectedPaths);
                 this.folderComboBox.SelectionStart = this.folderComboBox.Text.Length;
             }
+        }
         }
 
         /// <summary>

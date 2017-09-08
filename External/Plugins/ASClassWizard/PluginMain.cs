@@ -15,6 +15,7 @@ using ASClassWizard.Resources;
 using ASClassWizard.Wizards;
 using ASCompletion.Completion;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ASClassWizard
 {
@@ -414,7 +415,6 @@ namespace ASClassWizard
         {
             Int32 eolMode = (Int32)MainForm.Settings.EOLMode;
             String lineBreak = LineEndDetector.GetNewLineMarker(eolMode);
-            ClassModel cmodel;
             List<String> imports = new List<string>();
             string extends = "";
             string implements = "";
@@ -428,13 +428,13 @@ namespace ASClassWizard
             // resolve imports
             if (model.Implements != null && model.Implements.Count > 0)
             {
-                bool isHaxe2 = PluginBase.CurrentSDK != null && PluginBase.CurrentSDK.Name.ToLower().Contains("haxe 2");
                 string[] interfaceParts;
                 string implementContinuation;
                 index = 0;
 
                 if (lastFileOptions.Language == "haxe")
                 {
+                    bool isHaxe2 = PluginBase.CurrentSDK != null && PluginBase.CurrentSDK.Name.ToLower().Contains("haxe 2");
                     if (isHaxe2)
                     {
                         implements = " implements ";
@@ -466,14 +466,17 @@ namespace ASClassWizard
             }
             if (!string.IsNullOrEmpty(model.ExtendsType))
             {
-                String super = model.ExtendsType;
-                string[] _extends = super.Split('.');
-                if (_extends.Length > 1) imports.Add(super);
-                extends = " extends " + _extends[_extends.Length - 1];
+                var superClassFullName = model.ExtendsType;
+                var _extends = superClassFullName.Split('.');
+                var superClassShortName = _extends[_extends.Length - 1];
+                if (_extends.Length > 1) imports.Add(superClassFullName);
+                extends = fileName == superClassShortName ? $" extends {superClassFullName}" : $" extends {superClassShortName}";
+
                 processContext = ASContext.GetLanguageContext(lastFileOptions.Language);
                 if (lastFileOptions.CreateConstructor && processContext != null && constructorArgs == null)
                 {
-                    cmodel = processContext.GetModel(super.LastIndexOf('.') < 0 ? "" : super.Substring(0, super.LastIndexOf('.')), _extends[_extends.Length - 1], "");
+                    var lastDotIndex = superClassFullName.LastIndexOf('.');
+                    var cmodel = processContext.GetModel(lastDotIndex < 0 ? "" : superClassFullName.Substring(0, lastDotIndex), superClassShortName, "");
                     if (!cmodel.IsVoid())
                     {
                         foreach (MemberModel member in cmodel.Members)

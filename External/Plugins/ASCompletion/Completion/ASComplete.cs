@@ -1385,21 +1385,17 @@ namespace ASCompletion.Completion
             // does it need indentation?
             int tab = 0;
             int tempLine = line-1;
-            int tempIndent;
-            string tempText;
             while (tempLine > 0)
             {
-                tempText = Sci.GetLine(tempLine).Trim();
+                var tempText = Sci.GetLine(tempLine).Trim();
                 if (insideClass && CodeUtils.IsTypeDecl(tempText, features.typesKeywords))
                 {
-                    tempIndent = Sci.GetLineIndentation(tempLine);
-                    tab = tempIndent + Sci.TabWidth;
+                    tab = Sci.GetLineIndentation(tempLine) + Sci.TabWidth;
                     break;
                 }
                 if (tempText.Length > 0 && (tempText.EndsWith("}") || CodeUtils.IsDeclaration(tempText, features)))
                 {
-                    tempIndent = Sci.GetLineIndentation(tempLine);
-                    tab = tempIndent;
+                    tab = Sci.GetLineIndentation(tempLine);
                     if (tempText.EndsWith('{')) tab += Sci.TabWidth;
                     break;
                 }
@@ -1407,7 +1403,6 @@ namespace ASCompletion.Completion
             }
             if (tab > 0)
             {
-                tempIndent = Sci.GetLineIndentation(line);
                 Sci.SetLineIndentation(line, tab);
             }
 
@@ -2710,13 +2705,6 @@ namespace ASCompletion.Completion
                     result.Type = qualif;
                 }
             }
-            else if (result != null
-                    && result.Member == null && (result.Type?.Flags & FlagType.Class) != 0 && string.IsNullOrEmpty(context.WordBefore)
-                    && !string.IsNullOrEmpty(result.Path))
-            {
-                var characters = ScintillaControl.Configuration.GetLanguage(ctx.Settings.LanguageId.ToLower()).characterclass.Characters;
-                if (result.Path.All(c => characters.Contains(c))) result = new ASResult {Type = ctx.ResolveType("Class", inFile)};
-            }
             return result ?? notFound;
         }
 
@@ -3563,14 +3551,23 @@ namespace ASCompletion.Completion
                         {
                             if (c2 == '.' || c2 == ',' || c2 == '(' || c2 == '[' || c2 == '>' || c2 == '}' || position + 1 == startPosition)
                             {
-                            genCount++;
+                                genCount++;
                                 if (sb.Length >= 3 && sb[0] == '.' && sb[1] == '[' && sb[2] == ']') sb.Remove(0, 3);
                             }
-                        else break;
+                            else break;
+                        }
                     }
                     else if (genCount == 0 && arrCount == 0)
                     {
-                        if (c == '}') braCount++;
+                        if (c == '}')
+                        {
+                            if (!ignoreWhiteSpace && hadWS)
+                            {
+                                expression.Separator = ';';
+                                break;
+                            }
+                            braCount++;
+                        }
                         else if (c == '{' && braCount > 0)
                         {
                             braCount--;
@@ -4680,19 +4677,17 @@ namespace ASCompletion.Completion
 
         private static void SmartEventInsertion(ScintillaControl sci, int position, ICompletionListItem item)
         {
+            if (!ASContext.Context.Settings.GenerateImports) return;
             try
             {
                 ClassModel import = (item as EventItem).EventType;
                 if (!ASContext.Context.IsImported(import, sci.LineFromPosition(position)))
                 {
-                    if (ASContext.Context.Settings.GenerateImports)
+                    int offset = ASGenerator.InsertImport(import, true);
+                    if (offset > 0)
                     {
-                        int offset = ASGenerator.InsertImport(import, true);
-                        if (offset > 0)
-                        {
-                            position += offset;
-                            sci.SetSel(position, position);
-                        }
+                        position += offset;
+                        sci.SetSel(position, position);
                     }
                 }
             }
