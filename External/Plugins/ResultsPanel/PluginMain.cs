@@ -253,6 +253,7 @@ namespace ResultsPanel
             if (results.Count > 0)
             {
                 var desc = string.Join(Environment.NewLine, results.ToArray());
+                UITools.ErrorTip.Owner = UITools.CompletionList.Host;
                 UITools.ErrorTip.ShowAtMouseLocation(desc);
             }
         }

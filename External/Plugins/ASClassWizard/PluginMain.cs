@@ -428,7 +428,6 @@ namespace ASClassWizard
             // resolve imports
             if (model.Implements != null && model.Implements.Count > 0)
             {
-                string[] interfaceParts;
                 string implementContinuation;
                 index = 0;
 
@@ -453,7 +452,7 @@ namespace ASClassWizard
 
                 foreach (string item in model.Implements)
                 {
-                    interfaceParts = item.Split('.');
+                    var interfaceParts = item.Split('.');
                     if (interfaceParts.Length > 1) imports.Add(item);
                     implements += (index > 0 ? implementContinuation : "") + interfaceParts[interfaceParts.Length - 1];
                     if (lastFileOptions.CreateInheritedMethods)
@@ -469,6 +468,7 @@ namespace ASClassWizard
                 var superClassFullName = model.ExtendsType;
                 var _extends = superClassFullName.Split('.');
                 var superClassShortName = _extends[_extends.Length - 1];
+                var fileName = Path.GetFileNameWithoutExtension(lastFileFromTemplate);
                 if (_extends.Length > 1) imports.Add(superClassFullName);
                 extends = fileName == superClassShortName ? $" extends {superClassFullName}" : $" extends {superClassShortName}";
 
