@@ -60,12 +60,13 @@ namespace HaXeContext.Linters
                     {
                         foreach (var res in results)
                         {
+                            var range = res.Range ?? res.Args.Range;
                             var result = new LintingResult
                             {
-                                File = res.Range.Path,
-                                FirstChar = res.Range.CharacterStart,
-                                Length = res.Range.CharacterEnd - res.Range.CharacterStart,
-                                Line = res.Range.LineStart + 1,
+                                File = range.Path,
+                                FirstChar = range.CharacterStart,
+                                Length = range.CharacterEnd - range.CharacterStart,
+                                Line = range.LineStart + 1,
                             };
 
                             switch (res.Severity)

@@ -333,6 +333,7 @@ namespace HaXeContext
 
         HaxePositionResult ParseRange(JsonData range, string path)
         {
+            if (range == null) return null;
             var start = range["start"];
             var end = range["end"];
 
