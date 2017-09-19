@@ -8,7 +8,7 @@ namespace SourceControl.Dialogs
     /// <summary>
     /// A simple form where a user can enter a text string.
     /// </summary>
-    public class LineEntryDialog : Form
+    public class CommitEntryDialog : Form
     {
         string line;
 
@@ -34,7 +34,7 @@ namespace SourceControl.Dialogs
             get { return line; }
         }
 
-        public LineEntryDialog(string captionText, string labelText, string defaultLine)
+        public CommitEntryDialog(string captionText, string labelText, string defaultLine)
         {
             InitializeComponent();
             InititalizeLocalization();
@@ -92,15 +92,16 @@ namespace SourceControl.Dialogs
             // lineBox
             // 
             this.lineBox.Location = new System.Drawing.Point(10, 24);
+            this.lineBox.Multiline = true;
             this.lineBox.Name = "lineBox";
-            this.lineBox.Size = new System.Drawing.Size(260, 20);
+            this.lineBox.Size = new System.Drawing.Size(260, 88);
             this.lineBox.TabIndex = 0;
             // 
             // btnYes
             // 
             this.btnYes.DialogResult = System.Windows.Forms.DialogResult.Yes;
             this.btnYes.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.btnYes.Location = new System.Drawing.Point(25, 50);
+            this.btnYes.Location = new System.Drawing.Point(25, 118);
             this.btnYes.Name = "btnYes";
             this.btnYes.Size = new System.Drawing.Size(72, 21);
             this.btnYes.TabIndex = 1;
@@ -111,7 +112,7 @@ namespace SourceControl.Dialogs
             // 
             this.btnNo.DialogResult = System.Windows.Forms.DialogResult.No;
             this.btnNo.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.btnNo.Location = new System.Drawing.Point(103, 50);
+            this.btnNo.Location = new System.Drawing.Point(103, 118);
             this.btnNo.Name = "btnNo";
             this.btnNo.Size = new System.Drawing.Size(72, 21);
             this.btnNo.TabIndex = 2;
@@ -122,7 +123,7 @@ namespace SourceControl.Dialogs
             // 
             this.btnNever.DialogResult = System.Windows.Forms.DialogResult.Cancel;
             this.btnNever.FlatStyle = System.Windows.Forms.FlatStyle.System;
-            this.btnNever.Location = new System.Drawing.Point(181, 50);
+            this.btnNever.Location = new System.Drawing.Point(181, 118);
             this.btnNever.Name = "btnNever";
             this.btnNever.Size = new System.Drawing.Size(72, 21);
             this.btnNever.TabIndex = 4;
@@ -134,7 +135,7 @@ namespace SourceControl.Dialogs
             this.AcceptButton = this.btnYes;
             this.AutoScaleBaseSize = new System.Drawing.Size(5, 13);
             this.CancelButton = this.btnNo;
-            this.ClientSize = new System.Drawing.Size(282, 81);
+            this.ClientSize = new System.Drawing.Size(282, 151);
             this.Controls.Add(this.btnNever);
             this.Controls.Add(this.btnNo);
             this.Controls.Add(this.btnYes);

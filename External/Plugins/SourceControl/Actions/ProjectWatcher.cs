@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using PluginCore;
@@ -210,11 +211,7 @@ namespace SourceControl.Actions
             var msg = "Deleted";
             foreach (var file in files)
             {
-                var fileRelative = file;
-                if (PluginBase.CurrentProject != null)
-                    fileRelative = PluginBase.CurrentProject.GetRelativePath(fileRelative);
-
-                msg += " " + fileRelative;
+                msg += " " + GetRelativeFile(file);
             }
 
             var message = AskForCommit(msg);
@@ -224,10 +221,11 @@ namespace SourceControl.Actions
                 
         }
 
-        private static string GetSomeFiles(List<string> list)
+        private static string GetSomeFiles(IEnumerable<string> list)
         {
-            if (list.Count < 10) return String.Join("\n", list.ToArray());
-            return String.Join("\n", list.GetRange(0, 9).ToArray()) + "\n(...)\n" + list[list.Count - 1];
+            var array = list.ToArray();
+            if (array.Length < 10) return String.Join(Environment.NewLine, array);
+            return String.Join(Environment.NewLine, array, 0, 9) + Environment.NewLine + "(...)" + Environment.NewLine + array[array.Length - 1];
         }
 
         private static void GetAllFiles(string path, List<string> files)
@@ -268,18 +266,53 @@ namespace SourceControl.Actions
         /// <summary>
         /// Called after a file was sucessfully moved.
         /// </summary>
-        internal static void HandleFileMoved(string fromFile, string toFile)
+        internal static void HandleFilesMoved(Dictionary<string, string> files)
         {
-            var fResult = fsWatchers.ResolveVC(fromFile, true);
-            var result = fsWatchers.ResolveVC(toFile, true);
+            if (files == null || files.Count == 0) return;
+            var result = fsWatchers.ResolveVC(Path.GetDirectoryName(files.First().Value));
+            if (result == null) return;
 
-            var fromVCed = fResult != null && fResult.Status >= VCItemStatus.UpToDate && fResult.Status != VCItemStatus.Added;
-            var toVCed = result != null && result.Status >= VCItemStatus.UpToDate && result.Status != VCItemStatus.Added;
+            var deleted = new List<string>();
+            var moved = new Dictionary<string, string>();
 
-            if (fromVCed && toVCed)
-                AskWithTwoFiles(result.Manager, "Moved", fromFile, toFile);
-            else if (fromVCed) //counts as delete
-                HandleFilesDeleted(new[] { fromFile });
+
+            foreach (var pair in files)
+            {
+                var fromFile = pair.Key;
+                var toFile = pair.Value;
+
+                var fResult = fsWatchers.ResolveVC(fromFile, true);
+                result = fsWatchers.ResolveVC(toFile, true);
+
+                var fromVCed = fResult != null && fResult.Status >= VCItemStatus.UpToDate && fResult.Status != VCItemStatus.Added;
+                var toVCed = result != null && result.Status >= VCItemStatus.UpToDate && result.Status != VCItemStatus.Added;
+
+                if (fromVCed && toVCed)
+                    moved.Add(fromFile, toFile);
+                    //AskWithTwoFiles(result.Manager, "Moved", fromFile, toFile);
+                else if (fromVCed) //counts as delete
+                    //HandleFilesDeleted(new[] { fromFile });
+                    deleted.Add(fromFile);
+            }
+
+            var msg = "";
+
+            if (moved.Count > 0)
+            {
+                msg = "Moved files:" + Environment.NewLine + GetSomeFiles(moved.Select(pair => GetRelativeFile(pair.Key) + " to " + GetRelativeFile(pair.Value)));
+                
+                if (deleted.Count > 0)
+                    msg += Environment.NewLine + Environment.NewLine;
+            }
+            if (deleted.Count > 0)
+                msg += "Deleted files:" + Environment.NewLine + GetSomeFiles(deleted.Select(GetRelativeFile));
+
+            var message = AskForCommit(msg);
+            if (message != null)
+            {
+                var combined = moved.Keys.Concat(deleted).ToArray();
+                result.Manager.Commit(combined, message);
+            }
         }
 
         internal static bool HandleBuildProject()
@@ -427,7 +460,7 @@ namespace SourceControl.Actions
 
             //TODO: Add "Never button / checkbox"
 
-            using (LineEntryDialog led = new LineEntryDialog(title, msg, message))
+            using (CommitEntryDialog led = new CommitEntryDialog(title, msg, message))
             {
                 var result = led.ShowDialog();
                 if (result == DialogResult.Cancel) //Never

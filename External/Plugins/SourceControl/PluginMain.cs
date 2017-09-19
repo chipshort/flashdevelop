@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Threading.Tasks;
 using PluginCore;
 using PluginCore.Helpers;
 using PluginCore.Localization;
@@ -12,6 +14,7 @@ using ProjectManager.Actions;
 using ProjectManager.Projects;
 using SourceControl.Actions;
 using SourceControl.Helpers;
+using System.Timers;
 
 namespace SourceControl
 {
@@ -25,6 +28,11 @@ namespace SourceControl
         private static Settings settingObject;
         private String settingFilename;
         private Boolean ready;
+        Dictionary<string, string> delayedCopies = new Dictionary<string, string>();
+        Dictionary<string, string> delayedMoves = new Dictionary<string, string>();
+        Task delayedTask;
+
+
 
         #region Required Properties
 
@@ -210,7 +218,23 @@ namespace SourceControl
                             try
                             {
                                 var file = de.Data as Hashtable;
-                                ProjectWatcher.HandleFileMoved((string)file["fromPath"], (string)file["toPath"]);
+                                delayedMoves.Add((string) file["fromPath"], (string) file["toPath"]);
+
+                                //TODO: this will not work all the time, for example if some other plugin also catches it and shows a Messagebox
+                                if (delayedTask == null)
+                                {
+                                    delayedTask = Delay(1000);
+
+                                    delayedTask.ContinueWith(t =>
+                                    {
+                                        ProjectWatcher.HandleFilesMoved(delayedMoves);
+                                        delayedMoves.Clear();
+                                        delayedTask = null;
+                                    });
+                                }
+                                    
+
+                                //ProjectWatcher.HandleFileMoved((string)file["fromPath"], (string)file["toPath"]);
                             }
                             catch (Exception ex)
                             {
@@ -427,6 +451,16 @@ namespace SourceControl
         public void SaveSettings()
         {
             ObjectSerializer.Serialize(this.settingFilename, settingObject);
+        }
+
+        static Task Delay(int milliseconds)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            var timer = new Timer(milliseconds);
+            timer.Elapsed += (sender, args) => tcs.SetResult(true);
+            timer.AutoReset = false;
+            timer.Start();
+            return tcs.Task;
         }
 
         #endregion
