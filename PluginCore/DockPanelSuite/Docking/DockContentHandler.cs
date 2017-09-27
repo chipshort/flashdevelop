@@ -1005,7 +1005,9 @@ namespace WeifenLuo.WinFormsUI.Docking
         {
             Size size;
             DockPane floatPane = this.FloatPane;
-            if (DockState == DockState.Float || DockState == DockState.FloatDocument || floatPane == null || floatPane.FloatWindow.NestedPanes.Count != 1)
+            if (DockState == DockState.FloatDocument)
+                return floatPane.FloatWindow.Bounds;
+            if (DockState == DockState.Float || floatPane == null || floatPane.FloatWindow.NestedPanes.Count != 1)
                 size = DockPanel.DefaultFloatWindowSize;
             else
                 size = floatPane.FloatWindow.Size;

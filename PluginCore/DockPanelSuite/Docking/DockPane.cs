@@ -404,7 +404,8 @@ namespace WeifenLuo.WinFormsUI.Docking
                 if (DockState == DockState.Document ||
                     DockState == DockState.Hidden ||
                     DockState == DockState.Unknown ||
-                    ((DockState == DockState.Float || DockState == DockState.FloatDocument) && FloatWindow.VisibleNestedPanes.Count <= 1))
+                    DockState == DockState.FloatDocument ||
+                    ((DockState == DockState.Float ) && FloatWindow.VisibleNestedPanes.Count <= 1))
                     return false;
                 else
                     return true;
@@ -422,7 +423,7 @@ namespace WeifenLuo.WinFormsUI.Docking
                 return;
 
             m_isActivated = value;
-            if (DockState != DockState.Document)
+            if (DockState != DockState.Document && DockState != DockState.FloatDocument)
                 RefreshChanges(false);
             OnIsActivatedChanged(EventArgs.Empty);
         }
@@ -440,6 +441,11 @@ namespace WeifenLuo.WinFormsUI.Docking
             m_isActiveDocumentPane = value;
             if (DockState == DockState.Document)
                 RefreshChanges();
+            else if (DockState == DockState.FloatDocument)
+            {
+                RefreshChanges();
+                if (value) FloatWindow?.SetText();
+            }
             OnIsActiveDocumentPaneChanged(EventArgs.Empty);
         }
 
@@ -1259,8 +1265,7 @@ namespace WeifenLuo.WinFormsUI.Docking
             else
                 FloatWindow.Bounds = floatWindowBounds;
 
-            // TODO: Check
-            DockState = DockState.Float;
+            DockState = DockState == DockState.FloatDocument ? DockState.FloatDocument :  DockState.Float;
         }
 
         public void DockTo(DockPane pane, DockStyle dockStyle, int contentIndex)

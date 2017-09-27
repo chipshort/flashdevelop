@@ -138,7 +138,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
 
         [SuppressMessage("Microsoft.Globalization", "CA1303:DoNotPassLiteralsAsLocalizedParameters", MessageId = "System.Windows.Forms.Control.set_Text(System.String)")]
-        internal void SetText()
+        protected internal virtual void SetText()
         {
             DockPane theOnlyPane = (VisibleNestedPanes.Count == 1) ? VisibleNestedPanes[0] : null;
 

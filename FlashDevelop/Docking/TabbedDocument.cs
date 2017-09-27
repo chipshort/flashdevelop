@@ -4,9 +4,7 @@ using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Reflection;
-using WeifenLuo.WinFormsUI;
+using System.Linq;
 using WeifenLuo.WinFormsUI.Docking;
 using PluginCore.Localization;
 using FlashDevelop.Managers;
@@ -91,6 +89,21 @@ namespace FlashDevelop.Docking
         public void HandleEvent(object sender, NotifyEvent e, HandlingPriority priority)
         {
             ThemeManager.WalkControls(this);
+        }
+
+        protected override void SetText()
+        {
+            DockPane theOnlyPane = null;
+
+            if (VisibleNestedPanes.Count == 1)
+                theOnlyPane = VisibleNestedPanes[0];
+            else if (VisibleNestedPanes.Count > 0)
+                theOnlyPane = VisibleNestedPanes.FirstOrDefault(x => x == ActiveControl);
+
+            if (theOnlyPane == null || theOnlyPane.ActiveContent == null)
+                Text = " "; // use " " instead of string.Empty because the whole title bar will disappear when ControlBox is set to false.
+            else
+                Text = theOnlyPane.ActiveContent.DockHandler.TabText;
         }
     }
 
