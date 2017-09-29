@@ -72,6 +72,9 @@
   </Target>
   -->
   <ItemGroup>
+    <Reference Include="HaxeParser">
+      <HintPath>..\..\..\FlashDevelop\Bin\Debug\HaxeParser.dll</HintPath>
+    </Reference>
     <Reference Include="SwfOp, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\FlashDevelop\Bin\Debug\SwfOp.dll</HintPath>
@@ -128,6 +131,7 @@
     <Compile Include="Completion\HaxeComplete330.cs" />
     <Compile Include="HaXeSettings.cs" />
     <Compile Include="ExternalToolchain.cs" />
+    <Compile Include="Helpers\SwitchHelper.cs" />
     <Compile Include="Linters\DiagnosticsLinter.cs" />
     <Compile Include="PluginMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
