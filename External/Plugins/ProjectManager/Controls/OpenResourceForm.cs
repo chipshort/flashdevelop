@@ -560,20 +560,13 @@ namespace ProjectManager.Controls
                 {
                     Score = score,
                     FolderScore = folderScore,
-                    Value = item
+                    Value = item /*+ $" {score} {folderScore}"*/
                 };
                 matchedItems.Add(result);
             }
 
             //sort results in following priority: folderScore, score, length (folderScore being the most important one)
-            var sortedMatches = matchedItems.OrderByDescending(r => r.FolderScore).ThenByDescending(r => r.Score).ThenBy(r => r.Value.Length);
-
-            var results = new List<string>();
-            foreach (var r in sortedMatches)
-            {
-                if (limit > 0 && i++ >= limit) break;
-                results.Add(r.Value);
-            }
+            var results = matchedItems.OrderByDescending(r => r.FolderScore).ThenByDescending(r => r.Score).ThenBy(r => r.Value.Length).Select(r => r.Value).ToList();
 
             return results;
         }
@@ -619,10 +612,12 @@ namespace ProjectManager.Controls
         {
             double score = 0;
 
-            if (str.StartsWith(query, StringComparison.OrdinalIgnoreCase)) //Starts with bonus
+            if (str.StartsWith(query)) //Starts with bonus
                 return query.Length + 1;
+            if (str.StartsWith(query, StringComparison.OrdinalIgnoreCase)) //Starts with bonus
+                return query.Length;
 
-            if (str.ToLower().Contains(query.ToLower())) //Contains bonus
+            if (str.Contains(query)) //Contains bonus
                 return query.Length;
 
             int strIndex = 0;
