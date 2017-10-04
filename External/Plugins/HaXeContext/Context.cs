@@ -1332,7 +1332,8 @@ namespace HaXeContext
         internal HaxeComplete GetHaxeComplete(ScintillaControl sci, ASExpr expression, bool autoHide, HaxeCompilerService compilerService)
         {
             var sdkVersion = GetCurrentSDKVersion();
-            if (hxsettings.CompletionMode == HaxeCompletionModeEnum.CompletionServer && sdkVersion >= "3.3.0")
+            if (hxsettings.CompletionMode == HaxeCompletionModeEnum.CompletionServer && sdkVersion >= "3.3.0"
+                && (hxsettings.EnabledFeatures & CompletionFeatures.DisplayStdIn) == CompletionFeatures.DisplayStdIn)
                 return new HaxeComplete330(sci, expression, autoHide, completionModeHandler, compilerService, sdkVersion);
             return new HaxeComplete(sci, expression, autoHide, completionModeHandler, compilerService, sdkVersion);
         }
@@ -1346,7 +1347,8 @@ namespace HaXeContext
         /// <returns>Null (not handled) or member list</returns>
         public override MemberList ResolveDotContext(ScintillaNet.ScintillaControl sci, ASExpr expression, bool autoHide)
         {
-            if (resolvingDot || hxsettings.CompletionMode == HaxeCompletionModeEnum.FlashDevelop || PluginBase.MainForm.CurrentDocument.IsUntitled)
+            if (resolvingDot || hxsettings.CompletionMode == HaxeCompletionModeEnum.FlashDevelop
+                || PluginBase.MainForm.CurrentDocument.IsUntitled)
                 return null;
 
             if (autoHide && !hxsettings.DisableCompletionOnDemand)
@@ -1520,7 +1522,8 @@ namespace HaXeContext
         /// <returns>Null (not handled) or function signature</returns>
         public override MemberModel ResolveFunctionContext(ScintillaNet.ScintillaControl sci, ASExpr expression, bool autoHide)
         {
-            if (resolvingFunction || hxsettings.CompletionMode == HaxeCompletionModeEnum.FlashDevelop || PluginBase.MainForm.CurrentDocument.IsUntitled)
+            if (resolvingFunction || hxsettings.CompletionMode == HaxeCompletionModeEnum.FlashDevelop
+                || PluginBase.MainForm.CurrentDocument.IsUntitled)
                 return null;
 
             if (autoHide && !hxsettings.DisableCompletionOnDemand)
@@ -1836,10 +1839,12 @@ namespace HaXeContext
                 ErrorManager.ShowInfo(TextHelper.GetString("Info.InvalidHaXePath"));
                 return;
             }
-            if (Path.GetExtension(haxePath) == string.Empty) haxePath = Path.Combine(haxePath, "haxelib.exe");
-            nameToVersion.Select(it => $"{haxePath};install {it.Key} {it.Value}")
-                     .ToList()
-                     .ForEach(it => MainForm.CallCommand("RunProcessCaptured", it));
+            if (Directory.Exists(haxePath)) haxePath = Path.Combine(haxePath, "haxelib.exe");
+
+            var cwd = Directory.GetCurrentDirectory();
+            nameToVersion.Select(it => $"{haxePath};install {it.Key} {it.Value} -cwd \"{cwd}\"")
+                .ToList()
+                .ForEach(it => MainForm.CallCommand("RunProcessCaptured", it));
         }
 
         #endregion
