@@ -89,6 +89,7 @@
     <Compile Include="Handlers\MXMLLexer.cs" />
     <Compile Include="PluginMain.cs" />
     <Compile Include="Settings.cs" />
+    <Compile Include="Utilities\FormatterDefinition.cs" />
     <Compile Include="Utilities\HaxeAStyleEditor.cs" />
     <Compile Include="Utilities\HaxeAStyleHelper.cs" />
   </ItemGroup>
@@ -149,6 +150,9 @@
     <Compile Include="Handlers\ASPrettyPrinter.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Dialogs\HaxeAStyleDialog.resx">
+      <DependentUpon>HaxeAStyleDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Resources\AStyleExample.hx" />
   </ItemGroup>
 </Project>

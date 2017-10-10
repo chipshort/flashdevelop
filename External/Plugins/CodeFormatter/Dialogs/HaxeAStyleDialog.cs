@@ -4,11 +4,14 @@ using PluginCore;
 using ScintillaNet;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using PluginCore.Localization;
 using System.Reflection;
 using System.Windows.Forms.Design;
+using LitJson;
+using PluginCore.Helpers;
 
 namespace CodeFormatter.Dialogs
 {
@@ -18,6 +21,7 @@ namespace CodeFormatter.Dialogs
         private readonly Dictionary<CheckBox, string> mapping = new Dictionary<CheckBox, string>();
 
         private readonly string exampleCode;
+        readonly string formatterDir;
 
         #region Windows Form Designer generated code
 
@@ -55,6 +59,7 @@ namespace CodeFormatter.Dialogs
         private CheckBox checkPadParensIn;
         private CheckBox checkPadParensOut;
         private CheckBox checkCurrentFile;
+        private ComboBox cbFormatter;
 
         /// <summary>
         /// Required designer variable.
@@ -114,6 +119,7 @@ namespace CodeFormatter.Dialogs
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
             this.checkCurrentFile = new System.Windows.Forms.CheckBox();
+            this.cbFormatter = new System.Windows.Forms.ComboBox();
             this.tabControl.SuspendLayout();
             this.tabIndents.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numIndentWidth)).BeginInit();
@@ -124,15 +130,17 @@ namespace CodeFormatter.Dialogs
             // 
             // tabControl
             // 
+            this.tabControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl.Controls.Add(this.tabIndents);
             this.tabControl.Controls.Add(this.tabBrackets);
             this.tabControl.Controls.Add(this.tabPadding);
             this.tabControl.Controls.Add(this.tabFormatting);
-            this.tabControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tabControl.Location = new System.Drawing.Point(0, 0);
+            this.tabControl.Location = new System.Drawing.Point(0, 12);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(764, 506);
+            this.tabControl.Size = new System.Drawing.Size(764, 494);
             this.tabControl.TabIndex = 0;
             // 
             // tabIndents
@@ -147,7 +155,7 @@ namespace CodeFormatter.Dialogs
             this.tabIndents.Location = new System.Drawing.Point(4, 22);
             this.tabIndents.Name = "tabIndents";
             this.tabIndents.Padding = new System.Windows.Forms.Padding(3);
-            this.tabIndents.Size = new System.Drawing.Size(756, 480);
+            this.tabIndents.Size = new System.Drawing.Size(756, 468);
             this.tabIndents.TabIndex = 0;
             this.tabIndents.Text = "Tabs / Indents";
             this.tabIndents.UseVisualStyleBackColor = true;
@@ -254,7 +262,7 @@ namespace CodeFormatter.Dialogs
             this.tabBrackets.Location = new System.Drawing.Point(4, 22);
             this.tabBrackets.Name = "tabBrackets";
             this.tabBrackets.Padding = new System.Windows.Forms.Padding(3);
-            this.tabBrackets.Size = new System.Drawing.Size(756, 480);
+            this.tabBrackets.Size = new System.Drawing.Size(756, 468);
             this.tabBrackets.TabIndex = 1;
             this.tabBrackets.Text = "Brackets";
             this.tabBrackets.UseVisualStyleBackColor = true;
@@ -348,7 +356,7 @@ namespace CodeFormatter.Dialogs
             this.tabPadding.Controls.Add(this.checkPadBlocks);
             this.tabPadding.Location = new System.Drawing.Point(4, 22);
             this.tabPadding.Name = "tabPadding";
-            this.tabPadding.Size = new System.Drawing.Size(756, 480);
+            this.tabPadding.Size = new System.Drawing.Size(756, 468);
             this.tabPadding.TabIndex = 2;
             this.tabPadding.Text = "Padding";
             this.tabPadding.UseVisualStyleBackColor = true;
@@ -455,7 +463,7 @@ namespace CodeFormatter.Dialogs
             this.tabFormatting.Location = new System.Drawing.Point(4, 22);
             this.tabFormatting.Name = "tabFormatting";
             this.tabFormatting.Padding = new System.Windows.Forms.Padding(3);
-            this.tabFormatting.Size = new System.Drawing.Size(756, 480);
+            this.tabFormatting.Size = new System.Drawing.Size(756, 468);
             this.tabFormatting.TabIndex = 3;
             this.tabFormatting.Text = "Formatting";
             this.tabFormatting.UseVisualStyleBackColor = true;
@@ -502,9 +510,9 @@ namespace CodeFormatter.Dialogs
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.pnlSci.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pnlSci.Location = new System.Drawing.Point(292, 28);
+            this.pnlSci.Location = new System.Drawing.Point(292, 40);
             this.pnlSci.Name = "pnlSci";
-            this.pnlSci.Size = new System.Drawing.Size(458, 468);
+            this.pnlSci.Size = new System.Drawing.Size(458, 456);
             this.pnlSci.TabIndex = 11;
             // 
             // btnSave
@@ -531,6 +539,7 @@ namespace CodeFormatter.Dialogs
             // 
             // checkCurrentFile
             // 
+            this.checkCurrentFile.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.checkCurrentFile.AutoSize = true;
             this.checkCurrentFile.BackColor = System.Drawing.Color.White;
             this.checkCurrentFile.Location = new System.Drawing.Point(167, 479);
@@ -541,11 +550,22 @@ namespace CodeFormatter.Dialogs
             this.checkCurrentFile.UseVisualStyleBackColor = false;
             this.checkCurrentFile.CheckedChanged += new System.EventHandler(this.checkExampleFile_CheckedChanged);
             // 
+            // cbFormatter
+            // 
+            this.cbFormatter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cbFormatter.FormattingEnabled = true;
+            this.cbFormatter.Location = new System.Drawing.Point(637, 5);
+            this.cbFormatter.Name = "cbFormatter";
+            this.cbFormatter.Size = new System.Drawing.Size(121, 21);
+            this.cbFormatter.TabIndex = 14;
+            this.cbFormatter.SelectionChangeCommitted += new System.EventHandler(this.cbFormatter_SelectionChangeCommitted);
+            // 
             // HaxeAStyleDialog
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(764, 506);
+            this.Controls.Add(this.cbFormatter);
             this.Controls.Add(this.pnlSci);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnCancel);
@@ -578,8 +598,12 @@ namespace CodeFormatter.Dialogs
 
         public HaxeAStyleDialog(HaxeAStyleOptions options)
         {
+            formatterDir = Path.Combine(PathHelper.DataDir, "CodeFormatter", "Formatters");
+
             InitializeComponent();
             InitializeLocalization();
+
+            DiscoverFormatters();
 
             var currentDoc = PluginBase.MainForm.CurrentDocument;
             if (string.IsNullOrEmpty(currentDoc?.SciControl?.Text) || currentDoc.SciControl.ConfigurationLanguage != "haxe")
@@ -614,10 +638,10 @@ namespace CodeFormatter.Dialogs
 
             checkOneLineBrackets.DataBindings.Add("Enabled", checkAddBrackets, "Checked");
 
-            foreach (TabPage page in this.tabControl.TabPages)
-            {
-                MapCheckBoxes(page);
-            }
+            //foreach (TabPage page in this.tabControl.TabPages)
+            //{
+            //    MapCheckBoxes(page);
+            //}
 
             cbBracketStyle.DataSource = new[]
             {
@@ -627,8 +651,25 @@ namespace CodeFormatter.Dialogs
 
             SetOptions(options);
 
-            ValidateControls();
             ReformatExample();
+        }
+
+        void DiscoverFormatters()
+        {
+            cbFormatter.Items.Clear();
+            if (!Directory.Exists(formatterDir)) Directory.CreateDirectory(formatterDir);
+
+            foreach (var file in Directory.GetFiles(formatterDir, "*.json"))
+            {
+                var name = Path.GetFileNameWithoutExtension(file);
+                cbFormatter.Items.Add(name);
+            }
+
+            if (cbFormatter.Items.Count > 0)
+            {
+                cbFormatter.SelectedIndex = 0;
+                cbFormatter_SelectionChangeCommitted(cbFormatter, null);
+            }
         }
 
         #region Localization
@@ -878,67 +919,86 @@ namespace CodeFormatter.Dialogs
         /// Checks for incompatible selections and fixes them.
         /// For example, it makes no sense to delete and fill empty lines at the same time.
         /// </summary>
-        /// <param name="sender">An optional argument to determin what control triggers the validation. Needed for some checks</param>
-        private void ValidateControls(object sender = null)
+        /// <param name="sender">An optional argument to determine what control triggers the validation. Needed for some checks</param>
+        //private void ValidateControls(object sender = null)
+        //{
+        //    //Bracket style
+        //    string style = (string)cbBracketStyle.SelectedValue;
+
+        //    switch (style)
+        //    {
+        //        case "Java":
+        //        case "Kernighan & Ritchie":
+        //        case "Stroustrup":
+        //        case "Linux":
+        //        case "One True Brace":
+        //            checkBreakClosing.Enabled = true;
+        //            break;
+        //        default: //style enables this by default
+        //            checkBreakClosing.Enabled = false;
+        //            break;
+        //    }
+        //    switch (style)
+        //    {
+        //        case "Java":
+        //        case "Stroustrup":
+        //        case "Banner":
+        //        case "Google":
+        //        case "Lisp": //style enables this by default
+        //            checkAttachClasses.Enabled = false;
+        //            break;
+        //        default:
+        //            checkAttachClasses.Enabled = true;
+        //            break;
+        //    }
+        //    checkRemoveBrackets.Enabled = style != "One True Brace";
+
+        //    //Checkboxes
+        //    checkKeepOneLineBlocks.Enabled = !checkOneLineBrackets.Checked;
+        //    //These exclude each other:
+        //    if (sender == checkFillEmptyLines && checkFillEmptyLines.Checked)
+        //    {
+        //        checkDeleteEmptyLines.Checked = false;
+        //    }
+        //    else if (checkDeleteEmptyLines.Checked)
+        //    {
+        //        checkFillEmptyLines.Checked = false;
+        //    }
+
+        //    if (sender == checkAddBrackets && checkAddBrackets.Checked)
+        //    {
+        //        checkRemoveBrackets.Checked = false;
+        //    }
+        //    else if (checkRemoveBrackets.Checked)
+        //    {
+        //        checkAddBrackets.Checked = false;
+        //    }
+        //    //
+        //}
+
+        void check_Click(object sender, EventArgs e)
         {
-            //Bracket style
-            string style = (string)cbBracketStyle.SelectedValue;
+            var checkBox = (CheckBox) sender;
+            var check = (Check) checkBox.Tag;
 
-            switch (style)
+            foreach (var c in check.Unchecks)
             {
-                case "Java":
-                case "Kernighan & Ritchie":
-                case "Stroustrup":
-                case "Linux":
-                case "One True Brace":
-                    checkBreakClosing.Enabled = true;
-                    break;
-                default: //style enables this by default
-                    checkBreakClosing.Enabled = false;
-                    break;
+                //TODO: find c and uncheck it
             }
-            switch (style)
-            {
-                case "Java":
-                case "Stroustrup":
-                case "Banner":
-                case "Google":
-                case "Lisp": //style enables this by default
-                    checkAttachClasses.Enabled = false;
-                    break;
-                default:
-                    checkAttachClasses.Enabled = true;
-                    break;
-            }
-            checkRemoveBrackets.Enabled = style != "One True Brace";
+            //ValidateControls(sender);
 
-            //Checkboxes
-            checkKeepOneLineBlocks.Enabled = !checkOneLineBrackets.Checked;
-            //These exclude each other:
-            if (sender == checkFillEmptyLines && checkFillEmptyLines.Checked)
-            {
-                checkDeleteEmptyLines.Checked = false;
-            }
-            else if (checkDeleteEmptyLines.Checked)
-            {
-                checkFillEmptyLines.Checked = false;
-            }
-
-            if (sender == checkAddBrackets && checkAddBrackets.Checked)
-            {
-                checkRemoveBrackets.Checked = false;
-            }
-            else if (checkRemoveBrackets.Checked)
-            {
-                checkAddBrackets.Checked = false;
-            }
-            //
+            ReformatExample();
         }
 
-        private void check_Click(object sender, EventArgs e)
+        void cb_SelectionChangeCommitted(object sender, EventArgs e)
         {
-            ValidateControls(sender);
+            var comboBox = (ComboBox)sender;
+            var check = (Check)comboBox.Tag;
 
+            foreach (var c in check.Unchecks)
+            {
+                //TODO: find c and uncheck it
+            }
             ReformatExample();
         }
 
@@ -949,8 +1009,6 @@ namespace CodeFormatter.Dialogs
 
         private void cbBracketStyle_SelectionChangeCommitted(object sender, EventArgs e)
         {
-            ValidateControls();
-
             ReformatExample();
         }
 
@@ -983,6 +1041,134 @@ namespace CodeFormatter.Dialogs
 
         private void checkExampleFile_CheckedChanged(object sender, EventArgs e)
         {
+            ReformatExample();
+        }
+
+        private void cbFormatter_SelectionChangeCommitted(object sender, EventArgs e)
+        {
+            //Reset old ui
+            tabControl.TabPages.Clear();
+
+            //Load formatter info
+            var file = (string) cbFormatter.SelectedItem + ".json";
+            FormatterDefinition def;
+
+            using (TextReader reader = File.OpenText(Path.Combine(formatterDir, file)))
+            {
+                def = JsonMapper.ToObject<FormatterDefinition>(reader);
+            }
+
+            foreach (var cat in def.Categories)
+            {
+                var tp = new TabPage {Text = cat.Name};
+                tp.UseVisualStyleBackColor = true;
+                AddControls(cat.Options, tp, new Point(Pad, Pad));
+                tabControl.TabPages.Add(tp);
+            }
+            
+        }
+
+        const int SubPad = 20;
+        const int Pad = 6;
+
+        /// <summary>
+        /// Adds the options in <paramref name="opts"/> as Controls to <paramref name="page"/>.
+        /// </summary>
+        /// <param name="location">The point to start adding at</param>
+        /// <returns></returns>
+        int AddControls(FormatOption[] opts, TabPage page, Point location)
+        {
+            foreach (var opt in opts)
+            {
+                switch (opt.Type)
+                {
+                    case "check":
+                        var check = opt.CheckData;
+                        var checkBox = new CheckBox();
+
+                        checkBox.Text = opt.Name;
+                        checkBox.Location = location;
+                        checkBox.Tag = check;
+                        checkBox.AutoSize = true;
+                        checkBox.Checked = check.DefaultValue;
+                        checkBox.CheckedChanged += check_Click;
+
+                        page.Controls.Add(checkBox);
+                        location.Offset(0, checkBox.Height + Pad);
+
+                        if (check.Suboptions != null)
+                        {
+                            var subLocation = location;
+                            subLocation.Offset(SubPad, 0);
+                            location.Y = AddControls(check.Suboptions, page, subLocation);
+                        }
+
+                        break;
+                    case "select":
+                        var select = opt.SelectData;
+                        var selLabel = new Label();
+                        var comboBox = new ComboBox();
+
+                        selLabel.Text = opt.Name;
+                        selLabel.Location = location;
+
+                        foreach (var s in select.Options)
+                        {
+                            comboBox.Items.Add(s);
+                            if (s.Name == select.DefaultValue)
+                                comboBox.SelectedItem = s;
+                        }
+
+                        comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+                        //comboBox.Tag = select;
+                        comboBox.Location = new Point(location.X + selLabel.Width + Pad, location.Y);
+                        //TODO: event
+                        comboBox.SelectionChangeCommitted += ComboBox_SelectionChangeCommitted;
+
+                        page.Controls.Add(selLabel);
+                        page.Controls.Add(comboBox);
+                        location.Offset(0, comboBox.Height + Pad);
+
+                        break;
+                    case "number":
+                        var number = opt.NumberData;
+                        var numLabel = new Label();
+                        var numUpDown = new NumericUpDown();
+
+                        numLabel.Text = opt.Name;
+                        numLabel.Size = TextRenderer.MeasureText(opt.Name, numLabel.Font);
+                        numLabel.Location = new Point(location.X, location.Y + (numUpDown.Height - numLabel.Height) / 2);
+
+                        numUpDown.Minimum = number.Min;
+                        numUpDown.Maximum = number.Max;
+                        numUpDown.Value = number.DefaultValue;
+                        numUpDown.Width = 60;
+                        numUpDown.Location = new Point(location.X + numLabel.Width + Pad, location.Y);
+                        numUpDown.Tag = number;
+                        //TODO: event
+                        location.Offset(0, numUpDown.Height + Pad);
+
+                        page.Controls.Add(numLabel);
+                        page.Controls.Add(numUpDown);
+
+                        break;
+                    default:
+                        throw new Exception("Type of " + opt.Name + " is invalid");
+                }
+            }
+            return location.Y;
+        }
+
+        void ComboBox_SelectionChangeCommitted(object sender, EventArgs e)
+        {
+            var comboBox = (ComboBox)sender;
+            var select = (SelectData)comboBox.SelectedItem;
+
+            foreach (var c in select.Disables)
+            {
+                //TODO: find c and disable it
+            }
+
             ReformatExample();
         }
     }
