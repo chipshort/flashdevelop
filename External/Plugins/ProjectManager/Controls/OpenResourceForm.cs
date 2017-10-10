@@ -377,9 +377,9 @@ namespace ProjectManager.Controls
                         AddFilesInFolder(files, sub);
                     }
                 }
-                catch (PathTooLongException)
+                catch
                 {
-                    // Catch this error to avoid crashing the IDE.  There isn't really a graceful way to handle this.
+                    // Catch errors to avoid crashing the IDE.  There isn't really a graceful way to handle this.
                 }
             }
         }
