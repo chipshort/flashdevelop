@@ -21,9 +21,17 @@ namespace CodeFormatter.Utilities
             var entry = (KeyValuePair<string, FormatterState>) value;
             var dialog = new HaxeAStyleDialog(entry.Value);
 
-            //TODO: Collection editor seems to mess stuff up
             var result = dialog.ShowDialog(PluginCore.PluginBase.MainForm);
-            return result == DialogResult.OK ? new KeyValuePair<string, FormatterState>(entry.Key, dialog.ToFormatterState()) : value;
+            if (result == DialogResult.OK)
+            {
+                var newState = dialog.ToFormatterState();
+                //need to copy the values manually to the old object, because KeyValuePair.Value is read-only
+                entry.Value.File = newState.File;
+                entry.Value.AdditionalArgs = newState.AdditionalArgs;
+                entry.Value.Options = newState.Options;
+            }
+
+            return entry;
         }
     }
 }
