@@ -207,15 +207,21 @@ namespace CodeFormatter
             set { this.pref_AStyle_Others = value; }
         }
 
+        //[Category("Others")]
+        //[DisplayName("Haxe Options")]
+        ////[LocalizedDescription("CodeFormatter.Description.AStyle.OptionsHaxe")]
+        //[Editor(typeof(HaxeAStyleEditor), typeof(UITypeEditor))]
+        //public HaxeAStyleOptions Pref_AStyle_Haxe
+        //{
+        //    get { return this.pref_AStyle_Haxe; }
+        //    set { this.pref_AStyle_Haxe = value; }
+        //}
+
         [Category("Others")]
-        [DisplayName("Haxe Options")]
+        [DisplayName("Formatters")]
         //[LocalizedDescription("CodeFormatter.Description.AStyle.OptionsHaxe")]
-        [Editor(typeof(HaxeAStyleEditor), typeof(UITypeEditor))]
-        public HaxeAStyleOptions Pref_AStyle_Haxe
-        {
-            get { return this.pref_AStyle_Haxe; }
-            set { this.pref_AStyle_Haxe = value; }
-        }
+        [Editor(typeof(System.ComponentModel.Design.CollectionEditor), typeof(UITypeEditor))]
+        public Dictionary<string, FormatterState> Pref_FormatterStates { get; set; } = null;
 
         ////////////////// AS3 ///////////////////////////////////////
 
@@ -1809,6 +1815,7 @@ namespace CodeFormatter
                 buffer.Append(LineSplitter);
             }
             Pref_MXML_AttrGroups = buffer.ToString();
+            Pref_FormatterStates = new Dictionary<string, FormatterState>();
         }
         
         private List<AttrGroup> CreateDefaultGroups()
@@ -2239,10 +2246,10 @@ namespace CodeFormatter
             return attrs;
         }
 
-        public Settings()
-        {
-            Pref_AStyle_Haxe = HaxeAStyleHelper.GetDefaultOptions();
-        }
+        //public Settings()
+        //{
+        //    Pref_AStyle_Haxe = HaxeAStyleHelper.GetDefaultOptions();
+        //}
     }
 
     public enum AsteriskMode

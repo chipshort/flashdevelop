@@ -6,9 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using PluginCore.Localization;
 using System.Reflection;
+using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 using System.Windows.Forms.Design;
 using LitJson;
 using PluginCore.Helpers;
@@ -18,46 +21,18 @@ namespace CodeFormatter.Dialogs
     public class HaxeAStyleDialog : Form, IWindowsFormsEditorService
     {
         private readonly ScintillaControl txtExample;
-        private readonly Dictionary<CheckBox, string> mapping = new Dictionary<CheckBox, string>();
+        private readonly Dictionary<string, Control> mapping = new Dictionary<string, Control>();
 
-        private readonly string exampleCode;
-        readonly string formatterDir;
+        string exampleCode;
+        string formatterFile;
+        FormatterDefinition formatter;
 
         #region Windows Form Designer generated code
 
         private System.Windows.Forms.TabControl tabControl;
-        private System.Windows.Forms.TabPage tabIndents;
-        private System.Windows.Forms.Label lblIndentSize;
-        private System.Windows.Forms.NumericUpDown numIndentWidth;
-        private System.Windows.Forms.CheckBox checkForceTabs;
-        private System.Windows.Forms.CheckBox checkTabs;
-        private System.Windows.Forms.TabPage tabBrackets;
-        private System.Windows.Forms.CheckBox checkIndentCase;
-        private System.Windows.Forms.CheckBox checkIndentSwitches;
         private System.Windows.Forms.Panel pnlSci;
-        private System.Windows.Forms.Label lblBracketStyle;
-        private System.Windows.Forms.ComboBox cbBracketStyle;
-        private System.Windows.Forms.CheckBox checkIndentConditional;
-        private System.Windows.Forms.CheckBox checkAttachClasses;
-        private System.Windows.Forms.TabPage tabPadding;
-        private System.Windows.Forms.CheckBox checkPadHeaders;
-        private System.Windows.Forms.CheckBox checkPadCommas;
-        private System.Windows.Forms.CheckBox checkPadAll;
-        private System.Windows.Forms.CheckBox checkPadBlocks;
-        private System.Windows.Forms.CheckBox checkFillEmptyLines;
-        private System.Windows.Forms.CheckBox checkDeleteEmptyLines;
-        private System.Windows.Forms.CheckBox checkAddBrackets;
-        private System.Windows.Forms.CheckBox checkOneLineBrackets;
-        private System.Windows.Forms.CheckBox checkRemoveBrackets;
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnCancel;
-        private System.Windows.Forms.TabPage tabFormatting;
-        private System.Windows.Forms.CheckBox checkKeepOneLineStatements;
-        private System.Windows.Forms.CheckBox checkKeepOneLineBlocks;
-        private System.Windows.Forms.CheckBox checkBreakElseifs;
-        private System.Windows.Forms.CheckBox checkBreakClosing;
-        private CheckBox checkPadParensIn;
-        private CheckBox checkPadParensOut;
         private CheckBox checkCurrentFile;
         private ComboBox cbFormatter;
 
@@ -86,46 +61,11 @@ namespace CodeFormatter.Dialogs
         private void InitializeComponent()
         {
             this.tabControl = new System.Windows.Forms.TabControl();
-            this.tabIndents = new System.Windows.Forms.TabPage();
-            this.checkIndentConditional = new System.Windows.Forms.CheckBox();
-            this.checkIndentCase = new System.Windows.Forms.CheckBox();
-            this.checkIndentSwitches = new System.Windows.Forms.CheckBox();
-            this.lblIndentSize = new System.Windows.Forms.Label();
-            this.numIndentWidth = new System.Windows.Forms.NumericUpDown();
-            this.checkForceTabs = new System.Windows.Forms.CheckBox();
-            this.checkTabs = new System.Windows.Forms.CheckBox();
-            this.tabBrackets = new System.Windows.Forms.TabPage();
-            this.checkBreakClosing = new System.Windows.Forms.CheckBox();
-            this.checkRemoveBrackets = new System.Windows.Forms.CheckBox();
-            this.checkOneLineBrackets = new System.Windows.Forms.CheckBox();
-            this.checkAddBrackets = new System.Windows.Forms.CheckBox();
-            this.checkAttachClasses = new System.Windows.Forms.CheckBox();
-            this.lblBracketStyle = new System.Windows.Forms.Label();
-            this.cbBracketStyle = new System.Windows.Forms.ComboBox();
-            this.tabPadding = new System.Windows.Forms.TabPage();
-            this.checkPadParensOut = new System.Windows.Forms.CheckBox();
-            this.checkPadParensIn = new System.Windows.Forms.CheckBox();
-            this.checkFillEmptyLines = new System.Windows.Forms.CheckBox();
-            this.checkDeleteEmptyLines = new System.Windows.Forms.CheckBox();
-            this.checkPadHeaders = new System.Windows.Forms.CheckBox();
-            this.checkPadCommas = new System.Windows.Forms.CheckBox();
-            this.checkPadAll = new System.Windows.Forms.CheckBox();
-            this.checkPadBlocks = new System.Windows.Forms.CheckBox();
-            this.tabFormatting = new System.Windows.Forms.TabPage();
-            this.checkKeepOneLineStatements = new System.Windows.Forms.CheckBox();
-            this.checkKeepOneLineBlocks = new System.Windows.Forms.CheckBox();
-            this.checkBreakElseifs = new System.Windows.Forms.CheckBox();
             this.pnlSci = new System.Windows.Forms.Panel();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
             this.checkCurrentFile = new System.Windows.Forms.CheckBox();
             this.cbFormatter = new System.Windows.Forms.ComboBox();
-            this.tabControl.SuspendLayout();
-            this.tabIndents.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.numIndentWidth)).BeginInit();
-            this.tabBrackets.SuspendLayout();
-            this.tabPadding.SuspendLayout();
-            this.tabFormatting.SuspendLayout();
             this.SuspendLayout();
             // 
             // tabControl
@@ -133,376 +73,12 @@ namespace CodeFormatter.Dialogs
             this.tabControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.tabControl.Controls.Add(this.tabIndents);
-            this.tabControl.Controls.Add(this.tabBrackets);
-            this.tabControl.Controls.Add(this.tabPadding);
-            this.tabControl.Controls.Add(this.tabFormatting);
             this.tabControl.Location = new System.Drawing.Point(0, 12);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
             this.tabControl.Size = new System.Drawing.Size(764, 494);
             this.tabControl.TabIndex = 0;
-            // 
-            // tabIndents
-            // 
-            this.tabIndents.Controls.Add(this.checkIndentConditional);
-            this.tabIndents.Controls.Add(this.checkIndentCase);
-            this.tabIndents.Controls.Add(this.checkIndentSwitches);
-            this.tabIndents.Controls.Add(this.lblIndentSize);
-            this.tabIndents.Controls.Add(this.numIndentWidth);
-            this.tabIndents.Controls.Add(this.checkForceTabs);
-            this.tabIndents.Controls.Add(this.checkTabs);
-            this.tabIndents.Location = new System.Drawing.Point(4, 22);
-            this.tabIndents.Name = "tabIndents";
-            this.tabIndents.Padding = new System.Windows.Forms.Padding(3);
-            this.tabIndents.Size = new System.Drawing.Size(756, 468);
-            this.tabIndents.TabIndex = 0;
-            this.tabIndents.Text = "Tabs / Indents";
-            this.tabIndents.UseVisualStyleBackColor = true;
-            // 
-            // checkIndentConditional
-            // 
-            this.checkIndentConditional.AutoSize = true;
-            this.checkIndentConditional.Location = new System.Drawing.Point(6, 119);
-            this.checkIndentConditional.Name = "checkIndentConditional";
-            this.checkIndentConditional.Size = new System.Drawing.Size(166, 17);
-            this.checkIndentConditional.TabIndex = 11;
-            this.checkIndentConditional.Tag = "--indent-preproc-cond";
-            this.checkIndentConditional.Text = "Indent conditional compilation";
-            this.checkIndentConditional.UseVisualStyleBackColor = true;
-            this.checkIndentConditional.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkIndentCase
-            // 
-            this.checkIndentCase.AutoSize = true;
-            this.checkIndentCase.Location = new System.Drawing.Point(6, 96);
-            this.checkIndentCase.Name = "checkIndentCase";
-            this.checkIndentCase.Size = new System.Drawing.Size(116, 17);
-            this.checkIndentCase.TabIndex = 6;
-            this.checkIndentCase.Tag = "--indent-cases";
-            this.checkIndentCase.Text = "Indent case blocks";
-            this.checkIndentCase.UseVisualStyleBackColor = true;
-            this.checkIndentCase.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkIndentSwitches
-            // 
-            this.checkIndentSwitches.AutoSize = true;
-            this.checkIndentSwitches.Location = new System.Drawing.Point(6, 73);
-            this.checkIndentSwitches.Name = "checkIndentSwitches";
-            this.checkIndentSwitches.Size = new System.Drawing.Size(100, 17);
-            this.checkIndentSwitches.TabIndex = 5;
-            this.checkIndentSwitches.Tag = "--indent-switches";
-            this.checkIndentSwitches.Text = "Indent switches";
-            this.checkIndentSwitches.UseVisualStyleBackColor = true;
-            this.checkIndentSwitches.Click += new System.EventHandler(this.check_Click);
-            // 
-            // lblIndentSize
-            // 
-            this.lblIndentSize.AutoSize = true;
-            this.lblIndentSize.Location = new System.Drawing.Point(6, 49);
-            this.lblIndentSize.Name = "lblIndentSize";
-            this.lblIndentSize.Size = new System.Drawing.Size(38, 13);
-            this.lblIndentSize.TabIndex = 3;
-            this.lblIndentSize.Text = "Width:";
-            // 
-            // numIndentWidth
-            // 
-            this.numIndentWidth.Location = new System.Drawing.Point(50, 47);
-            this.numIndentWidth.Maximum = new decimal(new int[] {
-            20,
-            0,
-            0,
-            0});
-            this.numIndentWidth.Minimum = new decimal(new int[] {
-            2,
-            0,
-            0,
-            0});
-            this.numIndentWidth.Name = "numIndentWidth";
-            this.numIndentWidth.Size = new System.Drawing.Size(40, 20);
-            this.numIndentWidth.TabIndex = 2;
-            this.numIndentWidth.Value = new decimal(new int[] {
-            4,
-            0,
-            0,
-            0});
-            this.numIndentWidth.ValueChanged += new System.EventHandler(this.numIndentWidth_ValueChanged);
-            // 
-            // checkForceTabs
-            // 
-            this.checkForceTabs.AutoSize = true;
-            this.checkForceTabs.Location = new System.Drawing.Point(25, 29);
-            this.checkForceTabs.Name = "checkForceTabs";
-            this.checkForceTabs.Size = new System.Drawing.Size(80, 17);
-            this.checkForceTabs.TabIndex = 1;
-            this.checkForceTabs.Text = "Force Tabs";
-            this.checkForceTabs.UseVisualStyleBackColor = true;
-            this.checkForceTabs.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkTabs
-            // 
-            this.checkTabs.AutoSize = true;
-            this.checkTabs.Location = new System.Drawing.Point(6, 6);
-            this.checkTabs.Name = "checkTabs";
-            this.checkTabs.Size = new System.Drawing.Size(72, 17);
-            this.checkTabs.TabIndex = 0;
-            this.checkTabs.Text = "Use Tabs";
-            this.checkTabs.UseVisualStyleBackColor = true;
-            this.checkTabs.Click += new System.EventHandler(this.check_Click);
-            // 
-            // tabBrackets
-            // 
-            this.tabBrackets.Controls.Add(this.checkBreakClosing);
-            this.tabBrackets.Controls.Add(this.checkRemoveBrackets);
-            this.tabBrackets.Controls.Add(this.checkOneLineBrackets);
-            this.tabBrackets.Controls.Add(this.checkAddBrackets);
-            this.tabBrackets.Controls.Add(this.checkAttachClasses);
-            this.tabBrackets.Controls.Add(this.lblBracketStyle);
-            this.tabBrackets.Controls.Add(this.cbBracketStyle);
-            this.tabBrackets.Location = new System.Drawing.Point(4, 22);
-            this.tabBrackets.Name = "tabBrackets";
-            this.tabBrackets.Padding = new System.Windows.Forms.Padding(3);
-            this.tabBrackets.Size = new System.Drawing.Size(756, 468);
-            this.tabBrackets.TabIndex = 1;
-            this.tabBrackets.Text = "Brackets";
-            this.tabBrackets.UseVisualStyleBackColor = true;
-            // 
-            // checkBreakClosing
-            // 
-            this.checkBreakClosing.AutoSize = true;
-            this.checkBreakClosing.Location = new System.Drawing.Point(6, 125);
-            this.checkBreakClosing.Name = "checkBreakClosing";
-            this.checkBreakClosing.Size = new System.Drawing.Size(134, 17);
-            this.checkBreakClosing.TabIndex = 12;
-            this.checkBreakClosing.Tag = "--break-closing-brackets";
-            this.checkBreakClosing.Text = "Break closing brackets";
-            this.checkBreakClosing.UseVisualStyleBackColor = true;
-            this.checkBreakClosing.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkRemoveBrackets
-            // 
-            this.checkRemoveBrackets.AutoSize = true;
-            this.checkRemoveBrackets.Location = new System.Drawing.Point(6, 102);
-            this.checkRemoveBrackets.Name = "checkRemoveBrackets";
-            this.checkRemoveBrackets.Size = new System.Drawing.Size(183, 17);
-            this.checkRemoveBrackets.TabIndex = 8;
-            this.checkRemoveBrackets.Tag = "--remove-brackets";
-            this.checkRemoveBrackets.Text = "Remove braces from conditionals";
-            this.checkRemoveBrackets.UseVisualStyleBackColor = true;
-            this.checkRemoveBrackets.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkOneLineBrackets
-            // 
-            this.checkOneLineBrackets.AutoSize = true;
-            this.checkOneLineBrackets.Location = new System.Drawing.Point(25, 79);
-            this.checkOneLineBrackets.Name = "checkOneLineBrackets";
-            this.checkOneLineBrackets.Size = new System.Drawing.Size(160, 17);
-            this.checkOneLineBrackets.TabIndex = 7;
-            this.checkOneLineBrackets.Text = "Add braces on the same line";
-            this.checkOneLineBrackets.UseVisualStyleBackColor = true;
-            this.checkOneLineBrackets.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkAddBrackets
-            // 
-            this.checkAddBrackets.AutoSize = true;
-            this.checkAddBrackets.Location = new System.Drawing.Point(6, 56);
-            this.checkAddBrackets.Name = "checkAddBrackets";
-            this.checkAddBrackets.Size = new System.Drawing.Size(191, 17);
-            this.checkAddBrackets.TabIndex = 6;
-            this.checkAddBrackets.Text = "Add braces to one line conditionals";
-            this.checkAddBrackets.UseVisualStyleBackColor = true;
-            this.checkAddBrackets.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkAttachClasses
-            // 
-            this.checkAttachClasses.AutoSize = true;
-            this.checkAttachClasses.Location = new System.Drawing.Point(6, 33);
-            this.checkAttachClasses.Name = "checkAttachClasses";
-            this.checkAttachClasses.Size = new System.Drawing.Size(95, 17);
-            this.checkAttachClasses.TabIndex = 2;
-            this.checkAttachClasses.Tag = "--attach-classes";
-            this.checkAttachClasses.Text = "Attach classes";
-            this.checkAttachClasses.UseVisualStyleBackColor = true;
-            this.checkAttachClasses.Click += new System.EventHandler(this.check_Click);
-            // 
-            // lblBracketStyle
-            // 
-            this.lblBracketStyle.AutoSize = true;
-            this.lblBracketStyle.Location = new System.Drawing.Point(8, 9);
-            this.lblBracketStyle.Name = "lblBracketStyle";
-            this.lblBracketStyle.Size = new System.Drawing.Size(62, 13);
-            this.lblBracketStyle.TabIndex = 1;
-            this.lblBracketStyle.Text = "Brace style:";
-            // 
-            // cbBracketStyle
-            // 
-            this.cbBracketStyle.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cbBracketStyle.FormattingEnabled = true;
-            this.cbBracketStyle.Location = new System.Drawing.Point(85, 6);
-            this.cbBracketStyle.Name = "cbBracketStyle";
-            this.cbBracketStyle.Size = new System.Drawing.Size(120, 21);
-            this.cbBracketStyle.TabIndex = 0;
-            this.cbBracketStyle.SelectionChangeCommitted += new System.EventHandler(this.cbBracketStyle_SelectionChangeCommitted);
-            // 
-            // tabPadding
-            // 
-            this.tabPadding.Controls.Add(this.checkPadParensOut);
-            this.tabPadding.Controls.Add(this.checkPadParensIn);
-            this.tabPadding.Controls.Add(this.checkFillEmptyLines);
-            this.tabPadding.Controls.Add(this.checkDeleteEmptyLines);
-            this.tabPadding.Controls.Add(this.checkPadHeaders);
-            this.tabPadding.Controls.Add(this.checkPadCommas);
-            this.tabPadding.Controls.Add(this.checkPadAll);
-            this.tabPadding.Controls.Add(this.checkPadBlocks);
-            this.tabPadding.Location = new System.Drawing.Point(4, 22);
-            this.tabPadding.Name = "tabPadding";
-            this.tabPadding.Size = new System.Drawing.Size(756, 468);
-            this.tabPadding.TabIndex = 2;
-            this.tabPadding.Text = "Padding";
-            this.tabPadding.UseVisualStyleBackColor = true;
-            // 
-            // checkPadParensOut
-            // 
-            this.checkPadParensOut.AutoSize = true;
-            this.checkPadParensOut.Location = new System.Drawing.Point(6, 167);
-            this.checkPadParensOut.Name = "checkPadParensOut";
-            this.checkPadParensOut.Size = new System.Drawing.Size(152, 17);
-            this.checkPadParensOut.TabIndex = 24;
-            this.checkPadParensOut.Tag = "--pad-paren-out";
-            this.checkPadParensOut.Text = "Pad ouside of parentheses";
-            this.checkPadParensOut.UseVisualStyleBackColor = true;
-            this.checkPadParensOut.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkPadParensIn
-            // 
-            this.checkPadParensIn.AutoSize = true;
-            this.checkPadParensIn.Location = new System.Drawing.Point(6, 144);
-            this.checkPadParensIn.Name = "checkPadParensIn";
-            this.checkPadParensIn.Size = new System.Drawing.Size(148, 17);
-            this.checkPadParensIn.TabIndex = 23;
-            this.checkPadParensIn.Tag = "--pad-paren-in";
-            this.checkPadParensIn.Text = "Pad inside of parentheses";
-            this.checkPadParensIn.UseVisualStyleBackColor = true;
-            this.checkPadParensIn.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkFillEmptyLines
-            // 
-            this.checkFillEmptyLines.AutoSize = true;
-            this.checkFillEmptyLines.Location = new System.Drawing.Point(6, 121);
-            this.checkFillEmptyLines.Name = "checkFillEmptyLines";
-            this.checkFillEmptyLines.Size = new System.Drawing.Size(93, 17);
-            this.checkFillEmptyLines.TabIndex = 22;
-            this.checkFillEmptyLines.Tag = "--fill-empty-lines";
-            this.checkFillEmptyLines.Text = "Fill empty lines";
-            this.checkFillEmptyLines.UseVisualStyleBackColor = true;
-            this.checkFillEmptyLines.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkDeleteEmptyLines
-            // 
-            this.checkDeleteEmptyLines.AutoSize = true;
-            this.checkDeleteEmptyLines.Location = new System.Drawing.Point(6, 98);
-            this.checkDeleteEmptyLines.Name = "checkDeleteEmptyLines";
-            this.checkDeleteEmptyLines.Size = new System.Drawing.Size(112, 17);
-            this.checkDeleteEmptyLines.TabIndex = 12;
-            this.checkDeleteEmptyLines.Tag = "--delete-empty-lines";
-            this.checkDeleteEmptyLines.Text = "Delete empty lines";
-            this.checkDeleteEmptyLines.UseVisualStyleBackColor = true;
-            this.checkDeleteEmptyLines.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkPadHeaders
-            // 
-            this.checkPadHeaders.AutoSize = true;
-            this.checkPadHeaders.Location = new System.Drawing.Point(6, 75);
-            this.checkPadHeaders.Name = "checkPadHeaders";
-            this.checkPadHeaders.Size = new System.Drawing.Size(86, 17);
-            this.checkPadHeaders.TabIndex = 21;
-            this.checkPadHeaders.Tag = "--pad-header";
-            this.checkPadHeaders.Text = "Pad headers";
-            this.checkPadHeaders.UseVisualStyleBackColor = true;
-            this.checkPadHeaders.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkPadCommas
-            // 
-            this.checkPadCommas.AutoSize = true;
-            this.checkPadCommas.Location = new System.Drawing.Point(6, 52);
-            this.checkPadCommas.Name = "checkPadCommas";
-            this.checkPadCommas.Size = new System.Drawing.Size(87, 17);
-            this.checkPadCommas.TabIndex = 20;
-            this.checkPadCommas.Tag = "--pad-comma";
-            this.checkPadCommas.Text = "Pad commas";
-            this.checkPadCommas.UseVisualStyleBackColor = true;
-            this.checkPadCommas.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkPadAll
-            // 
-            this.checkPadAll.AutoSize = true;
-            this.checkPadAll.Location = new System.Drawing.Point(25, 29);
-            this.checkPadAll.Name = "checkPadAll";
-            this.checkPadAll.Size = new System.Drawing.Size(92, 17);
-            this.checkPadAll.TabIndex = 19;
-            this.checkPadAll.Text = "Pad all blocks";
-            this.checkPadAll.UseVisualStyleBackColor = true;
-            this.checkPadAll.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkPadBlocks
-            // 
-            this.checkPadBlocks.AutoSize = true;
-            this.checkPadBlocks.Location = new System.Drawing.Point(6, 6);
-            this.checkPadBlocks.Name = "checkPadBlocks";
-            this.checkPadBlocks.Size = new System.Drawing.Size(79, 17);
-            this.checkPadBlocks.TabIndex = 16;
-            this.checkPadBlocks.Text = "Pad blocks";
-            this.checkPadBlocks.UseVisualStyleBackColor = true;
-            this.checkPadBlocks.Click += new System.EventHandler(this.check_Click);
-            // 
-            // tabFormatting
-            // 
-            this.tabFormatting.Controls.Add(this.checkKeepOneLineStatements);
-            this.tabFormatting.Controls.Add(this.checkKeepOneLineBlocks);
-            this.tabFormatting.Controls.Add(this.checkBreakElseifs);
-            this.tabFormatting.Location = new System.Drawing.Point(4, 22);
-            this.tabFormatting.Name = "tabFormatting";
-            this.tabFormatting.Padding = new System.Windows.Forms.Padding(3);
-            this.tabFormatting.Size = new System.Drawing.Size(756, 468);
-            this.tabFormatting.TabIndex = 3;
-            this.tabFormatting.Text = "Formatting";
-            this.tabFormatting.UseVisualStyleBackColor = true;
-            // 
-            // checkKeepOneLineStatements
-            // 
-            this.checkKeepOneLineStatements.AutoSize = true;
-            this.checkKeepOneLineStatements.Location = new System.Drawing.Point(6, 52);
-            this.checkKeepOneLineStatements.Name = "checkKeepOneLineStatements";
-            this.checkKeepOneLineStatements.Size = new System.Drawing.Size(145, 17);
-            this.checkKeepOneLineStatements.TabIndex = 14;
-            this.checkKeepOneLineStatements.Tag = "--keep-one-line-statements";
-            this.checkKeepOneLineStatements.Text = "Keep one line statements";
-            this.checkKeepOneLineStatements.UseVisualStyleBackColor = true;
-            this.checkKeepOneLineStatements.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkKeepOneLineBlocks
-            // 
-            this.checkKeepOneLineBlocks.AutoSize = true;
-            this.checkKeepOneLineBlocks.Location = new System.Drawing.Point(6, 29);
-            this.checkKeepOneLineBlocks.Name = "checkKeepOneLineBlocks";
-            this.checkKeepOneLineBlocks.Size = new System.Drawing.Size(125, 17);
-            this.checkKeepOneLineBlocks.TabIndex = 13;
-            this.checkKeepOneLineBlocks.Tag = "--keep-one-line-blocks";
-            this.checkKeepOneLineBlocks.Text = "Keep one line blocks";
-            this.checkKeepOneLineBlocks.UseVisualStyleBackColor = true;
-            this.checkKeepOneLineBlocks.Click += new System.EventHandler(this.check_Click);
-            // 
-            // checkBreakElseifs
-            // 
-            this.checkBreakElseifs.AutoSize = true;
-            this.checkBreakElseifs.Location = new System.Drawing.Point(6, 6);
-            this.checkBreakElseifs.Name = "checkBreakElseifs";
-            this.checkBreakElseifs.Size = new System.Drawing.Size(89, 17);
-            this.checkBreakElseifs.TabIndex = 12;
-            this.checkBreakElseifs.Tag = "--break-elseifs";
-            this.checkBreakElseifs.Text = "Break else ifs";
-            this.checkBreakElseifs.UseVisualStyleBackColor = true;
-            this.checkBreakElseifs.Click += new System.EventHandler(this.check_Click);
+            this.tabControl.Selected += new System.Windows.Forms.TabControlEventHandler(this.tabControl_Selected);
             // 
             // pnlSci
             // 
@@ -579,16 +155,6 @@ namespace CodeFormatter.Dialogs
             this.ShowIcon = false;
             this.ShowInTaskbar = false;
             this.Text = "Haxe Formatter Settings";
-            this.tabControl.ResumeLayout(false);
-            this.tabIndents.ResumeLayout(false);
-            this.tabIndents.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.numIndentWidth)).EndInit();
-            this.tabBrackets.ResumeLayout(false);
-            this.tabBrackets.PerformLayout();
-            this.tabPadding.ResumeLayout(false);
-            this.tabPadding.PerformLayout();
-            this.tabFormatting.ResumeLayout(false);
-            this.tabFormatting.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -596,27 +162,17 @@ namespace CodeFormatter.Dialogs
 
         #endregion
 
-        public HaxeAStyleDialog(HaxeAStyleOptions options)
+        public HaxeAStyleDialog(FormatterState state)
         {
-            formatterDir = Path.Combine(PathHelper.DataDir, "CodeFormatter", "Formatters");
-
             InitializeComponent();
             InitializeLocalization();
 
-            DiscoverFormatters();
+            //DiscoverFormatters();
 
             var currentDoc = PluginBase.MainForm.CurrentDocument;
             if (string.IsNullOrEmpty(currentDoc?.SciControl?.Text) || currentDoc.SciControl.ConfigurationLanguage != "haxe")
             {
                 checkCurrentFile.Enabled = false;
-            }
-
-            //Read example file
-            var id = "CodeFormatter.Resources.AStyleExample.hx";
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            using (var reader = new StreamReader(assembly.GetManifestResourceStream(id)))
-            {
-                exampleCode = reader.ReadToEnd();
             }
 
             this.Font = PluginBase.Settings.DefaultFont;
@@ -631,44 +187,71 @@ namespace CodeFormatter.Dialogs
             };
             txtExample.SetProperty("lexer.cpp.track.preprocessor", "0");
 
-            this.pnlSci.Controls.Add(txtExample);
-
-            checkForceTabs.DataBindings.Add("Enabled", checkTabs, "Checked");
-            checkPadAll.DataBindings.Add("Enabled", checkPadBlocks, "Checked");
-
-            checkOneLineBrackets.DataBindings.Add("Enabled", checkAddBrackets, "Checked");
-
-            //foreach (TabPage page in this.tabControl.TabPages)
+            //Read example file
+            //var id = "CodeFormatter.Resources.AStyleExample.hx";
+            //Assembly assembly = Assembly.GetExecutingAssembly();
+            //using (var reader = new StreamReader(assembly.GetManifestResourceStream(id)))
             //{
-            //    MapCheckBoxes(page);
+            //    txtExample.Text = reader.ReadToEnd();
             //}
 
-            cbBracketStyle.DataSource = new[]
-            {
-                "Allman", "Java", "Kernighan & Ritchie", "Stroustrup", "Whitesmith", "VTK", "Banner", "GNU", "Linux",
-                "Horstmann", "One True Brace", "Google", /*"Mozilla",*/ "Pico", "Lisp"
-            }; //Mozilla not supported by old version of AStyle
+            this.pnlSci.Controls.Add(txtExample);
 
-            SetOptions(options);
+            //SetOptions(options);
+            InitFromState(state);
 
             ReformatExample();
         }
 
-        void DiscoverFormatters()
+        void InitFromState(FormatterState state)
         {
-            cbFormatter.Items.Clear();
-            if (!Directory.Exists(formatterDir)) Directory.CreateDirectory(formatterDir);
+            LoadFormatter(state.File);
 
-            foreach (var file in Directory.GetFiles(formatterDir, "*.json"))
+            foreach (var o in state.Options.Values)
             {
-                var name = Path.GetFileNameWithoutExtension(file);
-                cbFormatter.Items.Add(name);
-            }
+                var checkOpt = o as CheckOption;
+                var selectOpt = o as SelectOption;
+                var numberOpt = o as NumberOption;
+                Control control;
 
-            if (cbFormatter.Items.Count > 0)
-            {
-                cbFormatter.SelectedIndex = 0;
-                cbFormatter_SelectionChangeCommitted(cbFormatter, null);
+                if (checkOpt != null)
+                {
+                    if (mapping.TryGetValue(checkOpt.Id, out control))
+                    {
+                        var c = control as CheckBox;
+                        c.Checked = checkOpt.State;
+                        c.Enabled = checkOpt.Enabled;
+                    }
+                    //ignore else silently
+                }
+                else if (selectOpt != null)
+                {
+                    if (mapping.TryGetValue(selectOpt.Id, out control))
+                    {
+                        var c = control as ComboBox;
+                        c.Enabled = selectOpt.Enabled;
+                        try
+                        {
+                            c.SelectedIndex = selectOpt.Selection;
+                        }
+                        catch (ArgumentOutOfRangeException)
+                        {
+                            c.SelectedIndex = 0;
+                        }
+                        
+                    }
+                    //ignore else silently
+                }
+                else if (numberOpt != null)
+                {
+                    if (mapping.TryGetValue(numberOpt.Id, out control))
+                    {
+                        var c = control as NumericUpDown;
+                        c.Enabled = numberOpt.Enabled;
+                        c.Value = int.Parse(numberOpt.Value);
+                    }
+                    //ignore else silently
+                }
             }
         }
 
@@ -676,208 +259,161 @@ namespace CodeFormatter.Dialogs
 
         private void InitializeLocalization()
         {
+            //TODO: localization
             this.Text = TextHelper.GetString("Title.AStyleFormatterSettings");
             this.btnSave.Text = TextHelper.GetString("FlashDevelop.Label.Save");
             this.btnCancel.Text = TextHelper.GetString("FlashDevelop.Label.Cancel");
             this.checkCurrentFile.Text = TextHelper.GetString("Label.ShowCurrentFile");
-            this.checkAddBrackets.Text = TextHelper.GetString("Label.AddBrackets");
-            this.checkAttachClasses.Text = TextHelper.GetString("Label.AttachClasses");
-            this.checkBreakClosing.Text = TextHelper.GetString("Label.BreakClosing");
-            this.checkBreakElseifs.Text = TextHelper.GetString("Label.BreakElseifs");
-            this.checkDeleteEmptyLines.Text = TextHelper.GetString("Label.DeleteEmptyLines");
-            this.checkFillEmptyLines.Text = TextHelper.GetString("Label.FillEmptyLines");
-            this.checkForceTabs.Text = TextHelper.GetString("Label.ForceTabs");
-            this.checkIndentCase.Text = TextHelper.GetString("Label.IndentCases");
-            this.checkIndentConditional.Text = TextHelper.GetString("Label.IndentConditionals");
-            this.checkIndentSwitches.Text = TextHelper.GetString("Label.IndentSwitches");
-            this.checkKeepOneLineBlocks.Text = TextHelper.GetString("Label.KeepOneLineBlocks");
-            this.checkKeepOneLineStatements.Text = TextHelper.GetString("Label.KeepOneLineStatements");
-            this.checkPadCommas.Text = TextHelper.GetString("Label.PadCommas");
-            this.checkOneLineBrackets.Text = TextHelper.GetString("Label.AddOneLineBrackets");
-            this.checkPadAll.Text = TextHelper.GetString("Label.PadAllBlocks");
-            this.checkPadBlocks.Text = TextHelper.GetString("Label.PadBlocks");
-            this.checkPadHeaders.Text = TextHelper.GetString("Label.PadHeaders");
-            this.checkRemoveBrackets.Text = TextHelper.GetString("Label.RemoveBracketsFromContitionals");
-            this.checkTabs.Text = TextHelper.GetString("Label.UseTabs");
-            this.checkPadParensIn.Text = TextHelper.GetString("Label.PadParensIn");
-            this.checkPadParensOut.Text = TextHelper.GetString("Label.PadParensOut");
-            this.lblBracketStyle.Text = TextHelper.GetString("Label.BracketStyle");
-            this.lblIndentSize.Text = TextHelper.GetString("Label.IndentSize");
-            this.tabBrackets.Text = TextHelper.GetString("Info.Brackets");
-            this.tabFormatting.Text = TextHelper.GetString("Info.Formatting");
-            this.tabIndents.Text = TextHelper.GetString("Info.Indentation");
-            this.tabPadding.Text = TextHelper.GetString("Info.Padding");
+            //this.checkAddBrackets.Text = TextHelper.GetString("Label.AddBrackets");
+            //this.checkAttachClasses.Text = TextHelper.GetString("Label.AttachClasses");
+            //this.checkBreakClosing.Text = TextHelper.GetString("Label.BreakClosing");
+            //this.checkBreakElseifs.Text = TextHelper.GetString("Label.BreakElseifs");
+            //this.checkDeleteEmptyLines.Text = TextHelper.GetString("Label.DeleteEmptyLines");
+            //this.checkFillEmptyLines.Text = TextHelper.GetString("Label.FillEmptyLines");
+            //this.checkForceTabs.Text = TextHelper.GetString("Label.ForceTabs");
+            //this.checkIndentCase.Text = TextHelper.GetString("Label.IndentCases");
+            //this.checkIndentConditional.Text = TextHelper.GetString("Label.IndentConditionals");
+            //this.checkIndentSwitches.Text = TextHelper.GetString("Label.IndentSwitches");
+            //this.checkKeepOneLineBlocks.Text = TextHelper.GetString("Label.KeepOneLineBlocks");
+            //this.checkKeepOneLineStatements.Text = TextHelper.GetString("Label.KeepOneLineStatements");
+            //this.checkPadCommas.Text = TextHelper.GetString("Label.PadCommas");
+            //this.checkOneLineBrackets.Text = TextHelper.GetString("Label.AddOneLineBrackets");
+            //this.checkPadAll.Text = TextHelper.GetString("Label.PadAllBlocks");
+            //this.checkPadBlocks.Text = TextHelper.GetString("Label.PadBlocks");
+            //this.checkPadHeaders.Text = TextHelper.GetString("Label.PadHeaders");
+            //this.checkRemoveBrackets.Text = TextHelper.GetString("Label.RemoveBracketsFromContitionals");
+            //this.checkTabs.Text = TextHelper.GetString("Label.UseTabs");
+            //this.checkPadParensIn.Text = TextHelper.GetString("Label.PadParensIn");
+            //this.checkPadParensOut.Text = TextHelper.GetString("Label.PadParensOut");
+            //this.lblBracketStyle.Text = TextHelper.GetString("Label.BracketStyle");
+            //this.lblIndentSize.Text = TextHelper.GetString("Label.IndentSize");
+            //this.tabBrackets.Text = TextHelper.GetString("Info.Brackets");
+            //this.tabFormatting.Text = TextHelper.GetString("Info.Formatting");
+            //this.tabIndents.Text = TextHelper.GetString("Info.Indentation");
+            //this.tabPadding.Text = TextHelper.GetString("Info.Padding");
         }
 
         #endregion
 
-        /// <summary>
-        /// Fills <see cref="mapping"/>.
-        /// It checks the given <paramref name="page"/> for checkboxes that have a Tag.
-        /// The tab is assumed to be the flag that should be set.
-        /// Checkboxes without Tag are ignored by this method and have to be handled manually.
-        /// </summary>
-        private void MapCheckBoxes(TabPage page)
+        internal FormatterState ToFormatterState()
         {
-            foreach (Control c in page.Controls)
+            var state = new FormatterState(formatterFile);
+            state.AdditionalArgs = formatter.AdditionalArgs;
+
+            foreach (var c in mapping)
             {
-                CheckBox check = c as CheckBox;
-                if (check?.Tag != null)
+                var checkBox = c.Value as CheckBox;
+                var numUpDown = c.Value as NumericUpDown;
+                var comboBox = c.Value as ComboBox;
+
+                if (checkBox != null)
                 {
-                    //Tag is used to assign simple flags to the corresponding control
-                    //More complex options are handled in SetOptions and GetOptions
-                    mapping.Add(check, (string) check.Tag);
+                    if (checkBox.Enabled)
+                        state.Add(new CheckOption(c.Key, checkBox.Checked, GetArg(checkBox), checkBox.Enabled));
+                }
+                else if (numUpDown != null)
+                {
+                    if (numUpDown.Enabled)
+                        state.Add(new NumberOption(c.Key, (int) numUpDown.Value, GetArg(numUpDown), numUpDown.Enabled));
+                }
+                else if (comboBox != null)
+                {
+                    if (comboBox.Enabled)
+                        state.Add(new SelectOption(c.Key, comboBox.SelectedIndex, comboBox.SelectedText, GetArg(comboBox), comboBox.Enabled)); //TODO: check if SelectedText works
                 }
             }
+
+            return state;
         }
 
-        /// <summary>
-        /// Helper method used by <see cref="GetOptions"/> to automatically read values of simple flags from the
-        /// respective checkboxes into the given <paramref name="options"/>.
-        /// </summary>
-        /// <param name="page">The TabPage to set options for</param>
-        private void GetBasicTabOptions(List<HaxeAStyleOption> options, TabPage page)
+        string GetArg(CheckBox checkBox)
         {
-            foreach (Control c in page.Controls)
+            if (checkBox.Enabled)
             {
-                CheckBox check = c as CheckBox;
-                if (check != null && IsChecked(check) && mapping.ContainsKey(check))
+                var check = (Check)checkBox.Tag;
+                if (checkBox.Checked)
                 {
-                    options.Add(new HaxeAStyleOption(mapping[check]));
+                    if (check.ArgChecked != null)
+                        return FormatterHelper.ProcessArgument(check.ArgChecked, GetMapping);
+                }
+                else if (check.ArgUnchecked != null)
+                {
+                    return FormatterHelper.ProcessArgument(check.ArgUnchecked, GetMapping);
                 }
             }
+            return null;
         }
 
-        /// <summary>
-        /// Helper method used by <see cref="SetOptions"/> to automatically set simple flag checkboxes.
-        /// </summary>
-        /// <param name="page">The TabPage to search through</param>
-        private void SetBasicTabOptions(HaxeAStyleOptions options, TabPage page)
+        string GetArg(NumericUpDown numUpDown)
         {
-            foreach (Control c in page.Controls)
+            if (numUpDown.Enabled)
             {
-                CheckBox check = c as CheckBox;
-
-                bool hasOption = check != null && mapping.ContainsKey(check) && options.Exists(mapping[check]);
-
-                if (hasOption)
-                {
-                    check.Checked = true;
-                }
+                var num = (Number)numUpDown.Tag;
+                if (num.Arg != null)
+                    return FormatterHelper.ProcessArgument(num.Arg, GetMapping);
             }
+            return null;
         }
 
-        /// <summary>
-        /// Helper method to fill this dialog from the given <paramref name="options"/>.
-        /// </summary>
-        private void SetOptions(HaxeAStyleOptions options)
+        string GetArg(ComboBox comboBox)
         {
-            if (options.Count == 0)
+            if (comboBox.Enabled)
             {
-                return;
+                var data = (SelectData)comboBox.SelectedItem;
+                if (data.Arg != null)
+                    return FormatterHelper.ProcessArgument(data.Arg, GetMapping);
             }
-
-            //set default switches
-            foreach (TabPage page in this.tabControl.TabPages)
-            {
-                SetBasicTabOptions(options, page);
-            }
-
-            //Brackets
-            cbBracketStyle.SelectedItem = HaxeAStyleHelper.GetNameFromBraceStyle((string)options.Find("--style").Value);
-
-            checkOneLineBrackets.Checked = options.Exists("--add-one-line-brackets");
-            checkAddBrackets.Checked = checkOneLineBrackets.Checked || options.Exists("--add-brackets");
-
-            //Padding
-            HaxeAStyleOption breakBlocks = options.Find("--break-blocks");
-
-            if (breakBlocks != null)
-            {
-                checkPadBlocks.Checked = true;
-                checkPadAll.Checked = "all".Equals(breakBlocks.Value);
-            }
-
-            //Tabs / Indentation
-            HaxeAStyleOption forceTabs = options.Find("--indent=force-tab");
-            HaxeAStyleOption useTabs = options.Find("--indent=tab");
-            HaxeAStyleOption useSpaces = options.Find("--indent=spaces");
-
-            if (forceTabs != null)
-            {
-                checkTabs.Checked = true;
-                checkForceTabs.Checked = true;
-                numIndentWidth.Value = Convert.ToDecimal(forceTabs.Value);
-            }
-            else if (useTabs != null)
-            {
-                checkTabs.Checked = true;
-                //numIndentWidth.Enabled = false;
-                numIndentWidth.Value = Convert.ToDecimal(useTabs.Value);
-            }
-            else
-            {
-                checkTabs.Checked = false;
-                numIndentWidth.Value = Convert.ToDecimal(useSpaces.Value);
-            }
+            return null;
         }
 
-        /// <summary>
-        /// Helper method to create <see cref="HaxeAStyleOptions" /> from the currently selected
-        /// options.
-        /// </summary>
-        /// <returns>An object of type <see cref="HaxeAStyleOptions" />, which is a list of <see cref="HaxeAStyleOption"/></returns>
-        internal HaxeAStyleOptions GetOptions()
+        string GetArg(Control c)
         {
-            HaxeAStyleOptions options = new HaxeAStyleOptions();
+            var checkBox = c as CheckBox;
+            var numUpDown = c as NumericUpDown;
+            var comboBox = c as ComboBox;
 
-            //HaxeAStyleHelper.AddDefaultOptions(options);
-
-            //handling default switches
-            foreach (TabPage page in this.tabControl.TabPages)
+            if (checkBox != null)
             {
-                GetBasicTabOptions(options, page);
+                return GetArg(checkBox);
+            }
+            if (numUpDown != null)
+            {
+                return GetArg(numUpDown);
+            }
+            if (comboBox != null)
+            {
+                return GetArg(comboBox);
             }
 
-            //special options
+            return null;
+        }
 
-            //Tabs / Indentation
-            if (IsChecked(checkForceTabs))
-            {
-                options.Add(new HaxeAStyleOption("--indent=force-tab", numIndentWidth.Value));
-            }
-            else if (IsChecked(checkTabs))
-            {
-                options.Add(new HaxeAStyleOption("--indent=tab", numIndentWidth.Value));
-            }
-            else
-            {
-                options.Add(new HaxeAStyleOption("--indent=spaces", numIndentWidth.Value));
-            }
+        string GetMapping(string id)
+        {
+            Control ctrl;
+            if (!mapping.TryGetValue(id, out ctrl))
+                throw new FormatterException($"Formatter argument references \"{id}\", but it does not exist");
 
-            //Brackets
-            options.Add(new HaxeAStyleOption("--style",
-                HaxeAStyleHelper.GetBraceStyleFromName((string) cbBracketStyle.SelectedItem)));
-            
-            if (IsChecked(checkAddBrackets))
-            {
-                if (IsChecked(checkOneLineBrackets))
-                    options.Add(new HaxeAStyleOption("--add-one-line-brackets"));
-                else
-                    options.Add(new HaxeAStyleOption("--add-brackets"));
-            }
+            return GetValue(ctrl);
+        }
 
-            //Padding
-            if (IsChecked(checkPadBlocks))
-            {
-                if (IsChecked(checkPadAll))
-                    options.Add(new HaxeAStyleOption("--break-blocks", "all"));
-                else
-                    options.Add(new HaxeAStyleOption("--break-blocks"));
-            }
-            //options.Add("--indent-continuation=" + numIndentContinuation.Value); //not supported by old version of AStyle
+        string GetValue(Control ctrl)
+        {
+            var checkBox = ctrl as CheckBox;
+            var numUpDown = ctrl as NumericUpDown;
+            var comboBox = ctrl as ComboBox;
 
-            return options;
+            //not sure if we might need to check for Enabled first?
+            if (checkBox != null)
+                return checkBox.Checked.ToString();
+
+            if (numUpDown != null)
+                return numUpDown.Value.ToString("F1");
+
+            if (comboBox != null)
+                return ((SelectData)comboBox.SelectedItem).Value;
+
+            return "";
         }
 
         /// <summary>
@@ -886,7 +422,7 @@ namespace CodeFormatter.Dialogs
         private void ReformatExample()
         {
             AStyleInterface astyle = new AStyleInterface();
-            string[] options = GetOptions().ToStringArray();
+            string[] options = ToFormatterState().ToOptions().ToArray();
 
             var firstLine = txtExample.FirstVisibleLine;
 
@@ -907,118 +443,37 @@ namespace CodeFormatter.Dialogs
             txtExample.FirstVisibleLine = firstLine;
         }
 
-        /// <summary>
-        /// Helper method to determine if <paramref name="chk"/> is enabled and checked.
-        /// </summary>
-        private static bool IsChecked(CheckBox chk)
+        void LoadFormatter(string filename)
         {
-            return chk.Checked && chk.Enabled;
-        }
+            //Reset old ui
+            tabControl.TabPages.Clear();
+            mapping.Clear();
 
-        /// <summary>
-        /// Checks for incompatible selections and fixes them.
-        /// For example, it makes no sense to delete and fill empty lines at the same time.
-        /// </summary>
-        /// <param name="sender">An optional argument to determine what control triggers the validation. Needed for some checks</param>
-        //private void ValidateControls(object sender = null)
-        //{
-        //    //Bracket style
-        //    string style = (string)cbBracketStyle.SelectedValue;
+            formatter = FormatterHelper.ParseFormatter(filename);
 
-        //    switch (style)
-        //    {
-        //        case "Java":
-        //        case "Kernighan & Ritchie":
-        //        case "Stroustrup":
-        //        case "Linux":
-        //        case "One True Brace":
-        //            checkBreakClosing.Enabled = true;
-        //            break;
-        //        default: //style enables this by default
-        //            checkBreakClosing.Enabled = false;
-        //            break;
-        //    }
-        //    switch (style)
-        //    {
-        //        case "Java":
-        //        case "Stroustrup":
-        //        case "Banner":
-        //        case "Google":
-        //        case "Lisp": //style enables this by default
-        //            checkAttachClasses.Enabled = false;
-        //            break;
-        //        default:
-        //            checkAttachClasses.Enabled = true;
-        //            break;
-        //    }
-        //    checkRemoveBrackets.Enabled = style != "One True Brace";
-
-        //    //Checkboxes
-        //    checkKeepOneLineBlocks.Enabled = !checkOneLineBrackets.Checked;
-        //    //These exclude each other:
-        //    if (sender == checkFillEmptyLines && checkFillEmptyLines.Checked)
-        //    {
-        //        checkDeleteEmptyLines.Checked = false;
-        //    }
-        //    else if (checkDeleteEmptyLines.Checked)
-        //    {
-        //        checkFillEmptyLines.Checked = false;
-        //    }
-
-        //    if (sender == checkAddBrackets && checkAddBrackets.Checked)
-        //    {
-        //        checkRemoveBrackets.Checked = false;
-        //    }
-        //    else if (checkRemoveBrackets.Checked)
-        //    {
-        //        checkAddBrackets.Checked = false;
-        //    }
-        //    //
-        //}
-
-        void check_Click(object sender, EventArgs e)
-        {
-            var checkBox = (CheckBox) sender;
-            var check = (Check) checkBox.Tag;
-
-            foreach (var c in check.Unchecks)
+            //Initialize categories
+            foreach (var cat in formatter.Categories)
             {
-                //TODO: find c and uncheck it
+                var tp = new TabPage
+                {
+                    Text = cat.Name,
+                    Tag = cat,
+                    UseVisualStyleBackColor = true
+                };
+                AddControls(cat.Options, tp, new Point(Pad, Pad));
+                tabControl.TabPages.Add(tp);
             }
-            //ValidateControls(sender);
 
-            ReformatExample();
+            formatterFile = filename;
         }
 
-        void cb_SelectionChangeCommitted(object sender, EventArgs e)
-        {
-            var comboBox = (ComboBox)sender;
-            var check = (Check)comboBox.Tag;
-
-            foreach (var c in check.Unchecks)
-            {
-                //TODO: find c and uncheck it
-            }
-            ReformatExample();
-        }
-
-        private void numIndentWidth_ValueChanged(object sender, EventArgs e)
-        {
-            ReformatExample();
-        }
-
-        private void cbBracketStyle_SelectionChangeCommitted(object sender, EventArgs e)
-        {
-            ReformatExample();
-        }
-
-        private void btnSave_Click(object sender, EventArgs e)
+        void btnSave_Click(object sender, EventArgs e)
         {
             this.DialogResult = DialogResult.OK;
             this.Close();
         }
 
-        private void btnCancel_Click(object sender, EventArgs e)
+        void btnCancel_Click(object sender, EventArgs e)
         {
             this.DialogResult = DialogResult.Cancel;
             this.Close();
@@ -1039,33 +494,28 @@ namespace CodeFormatter.Dialogs
             return dialog.ShowDialog(this);
         }
 
-        private void checkExampleFile_CheckedChanged(object sender, EventArgs e)
+        void checkExampleFile_CheckedChanged(object sender, EventArgs e)
         {
             ReformatExample();
         }
 
-        private void cbFormatter_SelectionChangeCommitted(object sender, EventArgs e)
+        void tabControl_Selected(object sender, TabControlEventArgs e)
         {
-            //Reset old ui
-            tabControl.TabPages.Clear();
+            if (e.TabPage == null) return;
 
-            //Load formatter info
-            var file = (string) cbFormatter.SelectedItem + ".json";
-            FormatterDefinition def;
+            //update example code if available
+            var cat = (Category)e.TabPage.Tag;
 
-            using (TextReader reader = File.OpenText(Path.Combine(formatterDir, file)))
-            {
-                def = JsonMapper.ToObject<FormatterDefinition>(reader);
-            }
+            if (cat.Code != null)
+                exampleCode = cat.Code;
 
-            foreach (var cat in def.Categories)
-            {
-                var tp = new TabPage {Text = cat.Name};
-                tp.UseVisualStyleBackColor = true;
-                AddControls(cat.Options, tp, new Point(Pad, Pad));
-                tabControl.TabPages.Add(tp);
-            }
-            
+            ReformatExample();
+        }
+
+        void cbFormatter_SelectionChangeCommitted(object sender, EventArgs e)
+        {
+            var file = (string) cbFormatter.SelectedItem;
+            LoadFormatter(file);
         }
 
         const int SubPad = 20;
@@ -1091,7 +541,7 @@ namespace CodeFormatter.Dialogs
                         checkBox.Tag = check;
                         checkBox.AutoSize = true;
                         checkBox.Checked = check.DefaultValue;
-                        checkBox.CheckedChanged += check_Click;
+                        checkBox.CheckedChanged += CheckBox_CheckedChanged;
 
                         page.Controls.Add(checkBox);
                         location.Offset(0, checkBox.Height + Pad);
@@ -1101,8 +551,12 @@ namespace CodeFormatter.Dialogs
                             var subLocation = location;
                             subLocation.Offset(SubPad, 0);
                             location.Y = AddControls(check.Suboptions, page, subLocation);
+
+                            foreach (var sub in check.Suboptions)
+                                mapping[sub.Id].Enabled = check.DefaultValue;
                         }
 
+                        AddMapping(opt.Id, checkBox);
                         break;
                     case "select":
                         var select = opt.SelectData;
@@ -1112,22 +566,18 @@ namespace CodeFormatter.Dialogs
                         selLabel.Text = opt.Name;
                         selLabel.Location = location;
 
-                        foreach (var s in select.Options)
-                        {
-                            comboBox.Items.Add(s);
-                            if (s.Name == select.DefaultValue)
-                                comboBox.SelectedItem = s;
-                        }
+                        comboBox.Items.AddRange(select);
 
                         comboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-                        //comboBox.Tag = select;
                         comboBox.Location = new Point(location.X + selLabel.Width + Pad, location.Y);
-                        //TODO: event
                         comboBox.SelectionChangeCommitted += ComboBox_SelectionChangeCommitted;
+                        comboBox.SelectedIndex = 0;
 
                         page.Controls.Add(selLabel);
                         page.Controls.Add(comboBox);
                         location.Offset(0, comboBox.Height + Pad);
+
+                        AddMapping(opt.Id, comboBox);
 
                         break;
                     case "number":
@@ -1145,31 +595,112 @@ namespace CodeFormatter.Dialogs
                         numUpDown.Width = 60;
                         numUpDown.Location = new Point(location.X + numLabel.Width + Pad, location.Y);
                         numUpDown.Tag = number;
-                        //TODO: event
+                        numUpDown.ValueChanged += NumUpDown_ValueChanged;
+
                         location.Offset(0, numUpDown.Height + Pad);
 
                         page.Controls.Add(numLabel);
                         page.Controls.Add(numUpDown);
 
+                        AddMapping(opt.Id, numUpDown);
+
                         break;
                     default:
-                        throw new Exception("Type of " + opt.Name + " is invalid");
+                        throw new FormatterException("Type of " + opt.Id + " is invalid: \"" + (opt.Type ?? "null") + "\"");
                 }
             }
             return location.Y;
         }
 
-        void ComboBox_SelectionChangeCommitted(object sender, EventArgs e)
+        void AddMapping(string optId, Control checkBox)
         {
-            var comboBox = (ComboBox)sender;
-            var select = (SelectData)comboBox.SelectedItem;
-
-            foreach (var c in select.Disables)
+            try
             {
-                //TODO: find c and disable it
+                mapping.Add(optId, checkBox);
             }
+            catch (ArgumentNullException e)
+            {
+                throw new FormatterException("Formatter contains an option without Id", e);
+            }
+            catch (ArgumentException e)
+            {
+                throw new FormatterException("Formatter contains two options with the same id: " + optId, e);
+            }
+        }
+
+        void NumUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            //var numUpDown = (NumericUpDown) sender;
+            //var num = (Number) numUpDown.Tag;
 
             ReformatExample();
+        }
+
+        void CheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            var checkBox = (CheckBox) sender;
+            var check = (Check) checkBox.Tag;
+
+            if (checkBox.Checked && check.Unchecks != null)
+                foreach (var c in check.Unchecks)
+                {
+                    Control ctrl;
+                    if (!mapping.TryGetValue(c, out ctrl))
+                        throw new FormatterException($"Formatter specifies \"{c}\" to be unchecked, but it does not exist");
+
+                    var uncheckMe = ctrl as CheckBox;
+                    if (uncheckMe == null)
+                        throw new FormatterException($"Formatter specifies \"{c}\" to be unchecked, but it is not of type \"check\"");
+
+                    uncheckMe.Checked = false;
+                }
+
+            if (check.Suboptions != null)
+                foreach (var c in check.Suboptions)
+                {
+                    var sub = (CheckBox)mapping[c.Id];
+                    sub.Enabled = checkBox.Checked;
+                }
+
+            ReformatExample();
+        }
+
+        void ComboBox_SelectionChangeCommitted(object sender, EventArgs e)
+        {
+            var comboBox = (ComboBox) sender;
+            var select = (SelectData) comboBox.SelectedItem;
+
+            if (select.Disables != null)
+                foreach (var c in select.Disables) //TODO: how to reenable it?
+                {
+                    Control control;
+                    if (!mapping.TryGetValue(c, out control))
+                        throw new FormatterException($"The formatter references an option \"{c}\", but it does not exist");
+
+                    control.Enabled = false;
+                }
+
+            ReformatExample();
+        }
+    }
+
+    public class FormatterException : Exception
+    {
+
+        public FormatterException()
+        {
+        }
+
+        public FormatterException(String message)
+            : base(message) {
+        }
+
+        public FormatterException(String message, Exception innerException)
+            : base(message, innerException) {
+        }
+
+        protected FormatterException(SerializationInfo info, StreamingContext context)
+            : base(info, context) {
         }
     }
 }

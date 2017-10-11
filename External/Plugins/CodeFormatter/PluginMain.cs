@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using ASCompletion.Context;
 using CodeFormatter.Handlers;
+using CodeFormatter.Preferences;
 using CodeFormatter.Utilities;
 using PluginCore;
 using PluginCore.Helpers;
@@ -214,6 +217,13 @@ namespace CodeFormatter
                 Object obj = ObjectSerializer.Deserialize(this.settingFilename, this.settingObject);
                 this.settingObject = (Settings)obj;
             }
+
+            if (settingObject.Pref_FormatterStates == null)
+                settingObject.Pref_FormatterStates = new Dictionary<string, FormatterState>();
+
+            foreach (var formatter in FormatterHelper.FindFormatters())
+                if (!settingObject.Pref_FormatterStates.ContainsKey(formatter))
+                    settingObject.Pref_FormatterStates.Add(formatter, new FormatterState(formatter));
         }
 
         /// <summary>
@@ -252,6 +262,9 @@ namespace CodeFormatter
                 doc.SciControl.BeginUndoAction();
                 Int32 oldPos = CurrentPos;
                 String source = doc.SciControl.Text;
+
+                var lang = doc.SciControl.ConfigurationLanguage;
+
                 try
                 {
                     switch (DocumentType)

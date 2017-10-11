@@ -106,7 +106,8 @@ namespace CodeFormatter.Utilities
 
         public static string GetAStyleArguments(Settings settings)
         {
-            return string.Join(" ", settings.Pref_AStyle_Haxe.ToStringArray());
+            return "";
+            //return string.Join(" ", settings.Pref_FormatterStates.Values());
         }
 
         public static void AddDefaultOptions(HaxeAStyleOptions options)
