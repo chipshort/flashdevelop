@@ -218,12 +218,22 @@ namespace CodeFormatter
                 this.settingObject = (Settings)obj;
             }
 
-            if (settingObject.Pref_FormatterStates == null)
-                settingObject.Pref_FormatterStates = new Dictionary<string, FormatterState>();
+            var formatters = FormatterHelper.FindFormatters();
 
-            foreach (var formatter in FormatterHelper.FindFormatters())
-                if (!settingObject.Pref_FormatterStates.ContainsKey(formatter))
-                    settingObject.Pref_FormatterStates.Add(formatter, new FormatterState(formatter));
+            if (settingObject.Pref_FormatterStates == null)
+            {
+                //settingObject.Pref_FormatterStates = new List<FormatterState>(formatters.Count);
+                settingObject.Pref_FormatterStates = formatters.Select(f => new FormatterState(f)).ToArray();
+            }
+            else
+            {
+                var list = new List<FormatterState>(settingObject.Pref_FormatterStates);
+                foreach (var formatter in formatters)
+                    if (!list.Exists(f => f.File == formatter))
+                        list.Add(new FormatterState(formatter));
+
+                settingObject.Pref_FormatterStates = list.ToArray();
+            }
         }
 
         /// <summary>
@@ -264,6 +274,15 @@ namespace CodeFormatter
                 String source = doc.SciControl.Text;
 
                 var lang = doc.SciControl.ConfigurationLanguage;
+                var formatters = settingObject.Pref_FormatterStates.Where(f => f.Language == lang).ToList();
+                if (formatters.Count == 1)
+                {
+                    //TODO: call formatter
+                }
+                else if (formatters.Count > 1)
+                {
+                    //TODO: ask for one formatter
+                }
 
                 try
                 {

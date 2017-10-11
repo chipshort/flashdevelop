@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing.Design;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using CodeFormatter.Utilities;
 
 namespace CodeFormatter.Preferences
@@ -12,9 +11,11 @@ namespace CodeFormatter.Preferences
     [Editor(typeof(FormatterStateEditor), typeof(UITypeEditor))]
     public class FormatterState
     {
-        public string File { get; set; }
-        public Dictionary<string, FormatterOption> Options = new Dictionary<string, FormatterOption>();
-        public string[] AdditionalArgs;
+        public string File { get; }
+        public string Language { get; }
+        
+        public Dictionary<string, FormatterOption> Options { get; set; } = new Dictionary<string, FormatterOption>();
+        public string[] AdditionalArgs { get; set; }
 
         public FormatterState(string file)
         {
@@ -32,6 +33,11 @@ namespace CodeFormatter.Preferences
         public IEnumerable<string> ToOptions()
         {
             return Options.Values.Select(o => FormatterHelper.ProcessArgument(o.Arg, id => Options[id].Value)).Concat(AdditionalArgs);
+        }
+
+        public override string ToString()
+        {
+            return File;
         }
     }
 

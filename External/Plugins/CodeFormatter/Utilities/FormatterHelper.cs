@@ -1,12 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using CodeFormatter.Dialogs;
-using CodeFormatter.Preferences;
 using LitJson;
 using PluginCore.Helpers;
 
@@ -14,14 +9,6 @@ namespace CodeFormatter.Utilities
 {
     class FormatterHelper
     {
-        /// <summary>
-        /// Helper method to create a list of flags from the saved <see cref="FormatterState"/>.
-        /// </summary>
-        internal static List<string> GetOptions(FormatterState state)
-        {
-            return state.Options.Select(o => o.Value.Arg).Concat(state.AdditionalArgs).ToList();
-        }
-        
         /// <summary>
         /// Creates an enumerable of formatter names (only the file names without extension)
         /// </summary>

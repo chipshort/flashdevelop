@@ -221,7 +221,7 @@ namespace CodeFormatter
         [DisplayName("Formatters")]
         //[LocalizedDescription("CodeFormatter.Description.AStyle.OptionsHaxe")]
         [Editor(typeof(System.ComponentModel.Design.CollectionEditor), typeof(UITypeEditor))]
-        public Dictionary<string, FormatterState> Pref_FormatterStates { get; set; } = null;
+        public FormatterState[] Pref_FormatterStates { get; set; }
 
         ////////////////// AS3 ///////////////////////////////////////
 
@@ -1815,7 +1815,6 @@ namespace CodeFormatter
                 buffer.Append(LineSplitter);
             }
             Pref_MXML_AttrGroups = buffer.ToString();
-            Pref_FormatterStates = new Dictionary<string, FormatterState>();
         }
         
         private List<AttrGroup> CreateDefaultGroups()
