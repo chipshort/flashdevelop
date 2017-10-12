@@ -184,7 +184,6 @@ namespace CodeFormatter
         ////////////////// Others ///////////////////////////////////////
 
         private string pref_AStyle_CPP = "";
-        private HaxeAStyleOptions pref_AStyle_Haxe = new HaxeAStyleOptions();
         private string pref_AStyle_Others = "";
 
         [DefaultValue("")]
@@ -221,6 +220,7 @@ namespace CodeFormatter
         [DisplayName("Formatters")]
         //[LocalizedDescription("CodeFormatter.Description.AStyle.OptionsHaxe")]
         [Editor(typeof(System.ComponentModel.Design.CollectionEditor), typeof(UITypeEditor))]
+        [ReadOnly(true)]
         public FormatterState[] Pref_FormatterStates { get; set; }
 
         ////////////////// AS3 ///////////////////////////////////////

@@ -37,8 +37,7 @@ namespace CodeFormatter.Utilities
 
         public FormatterState ToFormatterState(string filename)
         {
-            var state = new FormatterState(filename);
-            state.AdditionalArgs = AdditionalArgs;
+            var state = new FormatterState(filename, Command) {AdditionalArgs = AdditionalArgs};
 
             foreach (var cat in Categories)
             {

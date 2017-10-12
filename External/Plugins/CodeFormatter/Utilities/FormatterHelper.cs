@@ -14,9 +14,7 @@ namespace CodeFormatter.Utilities
         /// </summary>
         internal static IEnumerable<string> FindFormatters()
         {
-            var formatterDir = Path.Combine(PathHelper.DataDir, "CodeFormatter", "Formatters");
-
-            if (!Directory.Exists(formatterDir)) Directory.CreateDirectory(formatterDir);
+            var formatterDir = GetFormatterFolder();
 
             foreach (var file in Directory.GetFiles(formatterDir, "*.json"))
             {
@@ -26,7 +24,7 @@ namespace CodeFormatter.Utilities
 
         internal static FormatterDefinition ParseFormatter(string name)
         {
-            var formatterDir = Path.Combine(PathHelper.DataDir, "CodeFormatter", "Formatters");
+            var formatterDir = GetFormatterFolder();
 
             //Load formatter definition
             FormatterDefinition def;
@@ -36,6 +34,19 @@ namespace CodeFormatter.Utilities
             }
 
             return def;
+        }
+
+        /// <summary>
+        /// Gets the folder where formatters are stored and makes sure it exists
+        /// </summary>
+        internal static string GetFormatterFolder()
+        {
+            var formatterDir = Path.Combine(PathHelper.DataDir, "CodeFormatter", "Formatters");
+
+            if (!Directory.Exists(formatterDir))
+                Directory.CreateDirectory(formatterDir);
+
+            return formatterDir;
         }
 
         internal static string ProcessArgument(string arg, Func<string, string> getMapping)

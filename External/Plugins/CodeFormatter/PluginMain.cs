@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using ASCompletion.Context;
-using CodeFormatter.Handlers;
+using CodeFormatter.Formatter;
 using CodeFormatter.Preferences;
 using CodeFormatter.Utilities;
 using PluginCore;
@@ -14,6 +14,7 @@ using PluginCore.Localization;
 using PluginCore.Managers;
 using PluginCore.Utilities;
 using ScintillaNet;
+using ASFormatter = CodeFormatter.Formatter.ASFormatter;
 
 namespace CodeFormatter
 {
@@ -218,19 +219,23 @@ namespace CodeFormatter
                 this.settingObject = (Settings)obj;
             }
 
-            var formatters = FormatterHelper.FindFormatters();
+            var formatters = FormatterHelper.FindFormatters().ToList();
 
             if (settingObject.Pref_FormatterStates == null)
             {
-                //settingObject.Pref_FormatterStates = new List<FormatterState>(formatters.Count);
-                settingObject.Pref_FormatterStates = formatters.Select(f => new FormatterState(f)).ToArray();
+                settingObject.Pref_FormatterStates = formatters.Select(f => FormatterHelper.ParseFormatter(f).ToFormatterState(f)).ToArray();
             }
             else
             {
                 var list = new List<FormatterState>(settingObject.Pref_FormatterStates);
+
+                foreach (var formatter in settingObject.Pref_FormatterStates)
+                    if (!formatters.Exists(f => formatter.File == f)) //formatter does not exist anymore
+                        list.Remove(formatter);
+
                 foreach (var formatter in formatters)
-                    if (!list.Exists(f => f.File == formatter))
-                        list.Add(new FormatterState(formatter));
+                    if (!list.Exists(f => f.File == formatter)) //formatter is new
+                        list.Add(FormatterHelper.ParseFormatter(formatter).ToFormatterState(formatter));
 
                 settingObject.Pref_FormatterStates = list.ToArray();
             }
@@ -265,92 +270,64 @@ namespace CodeFormatter
         /// <summary>
         /// Formats the specified document
         /// </summary>
-        private void DoFormat(ITabbedDocument doc)
+        void DoFormat(ITabbedDocument doc)
         {
             if (doc.IsEditable)
             {
-                doc.SciControl.BeginUndoAction();
-                Int32 oldPos = CurrentPos;
-                String source = doc.SciControl.Text;
-
                 var lang = doc.SciControl.ConfigurationLanguage;
-                var formatters = settingObject.Pref_FormatterStates.Where(f => f.Language == lang).ToList();
-                if (formatters.Count == 1)
+                //Look for external formatters
+                var formatters = settingObject.Pref_FormatterStates.Where(f => f.Language == lang).Select(GetFormatter).ToList();
+
+                //Add internal formatters
+                switch (DocumentType)
                 {
-                    //TODO: call formatter
-                }
-                else if (formatters.Count > 1)
-                {
-                    //TODO: ask for one formatter
+                    case TYPE_AS3:
+                        formatters.Add(new ASFormatter(true, settingObject));
+                        break;
+
+                    case TYPE_MXML:
+                    case TYPE_XML:
+                        formatters.Add(new XmlFormatter(settingObject));
+                        break;
+
+                    case TYPE_CPP:
+                        var options = this.GetOptionData(doc.SciControl.ConfigurationLanguage.ToLower());
+                        formatters.Add(new AStyleFormatter(options));
+                        break;
                 }
 
+                if (formatters.Count == 0)
+                {
+                    ErrorManager.ShowInfo("No formatter for this language found"); //TODO: localize
+                    return;
+                }
+                IFormatter formatter;
+                if (formatters.Count > 1)
+                {
+                    //TODO: ask which one
+                }
+                formatter = formatters[0];
+
+                var oldPos = CurrentPos;
+                var source = doc.SciControl.Text;
+                doc.SciControl.BeginUndoAction();
                 try
                 {
-                    switch (DocumentType)
+                    var result = formatter.Format(source);
+                    var error = result.Error;
+                    var output = result.Result;
+
+                    if (error)
                     {
-                        case TYPE_AS3:
-                            ASPrettyPrinter asPrinter = new ASPrettyPrinter(true, source);
-                            FormatUtility.configureASPrinter(asPrinter, this.settingObject);
-                            String asResultData = asPrinter.print(0);
-                            if (asResultData == null)
-                            {
-                                TraceManager.Add(TextHelper.GetString("Info.CouldNotFormat"), -3);
-                                PluginBase.MainForm.CallCommand("PluginCommand", "ResultsPanel.ShowResults");
-                            }
-                            else
-                            {
-                                doc.SciControl.Text = asResultData;
-                                doc.SciControl.ConvertEOLs(doc.SciControl.EOLMode);
-                            }
-                            break;
-
-                        case TYPE_MXML:
-                        case TYPE_XML:
-                            MXMLPrettyPrinter mxmlPrinter = new MXMLPrettyPrinter(source);
-                            FormatUtility.configureMXMLPrinter(mxmlPrinter, this.settingObject);
-                            String mxmlResultData = mxmlPrinter.print(0);
-                            if (mxmlResultData == null)
-                            {
-                                TraceManager.Add(TextHelper.GetString("Info.CouldNotFormat"), -3);
-                                PluginBase.MainForm.CallCommand("PluginCommand", "ResultsPanel.ShowResults");
-                            }
-                            else
-                            {
-                                doc.SciControl.Text = mxmlResultData;
-                                doc.SciControl.ConvertEOLs(doc.SciControl.EOLMode);
-                            }
-                            break;
-
-                        case TYPE_CPP:
-                            AStyleInterface asi = new AStyleInterface();
-                            String optionData;
-                            if (doc.SciControl.ConfigurationLanguage == "haxe")
-                            {
-                                optionData = HaxeAStyleHelper.GetAStyleArguments(this.settingObject);
-                            }
-                            else
-                            {
-                                optionData = this.GetOptionData(doc.SciControl.ConfigurationLanguage.ToLower());
-                            }
-                            String resultData = asi.FormatSource(source, optionData);
-                            if (String.IsNullOrEmpty(resultData))
-                            {
-                                TraceManager.Add(TextHelper.GetString("Info.CouldNotFormat"), -3);
-                                PluginBase.MainForm.CallCommand("PluginCommand", "ResultsPanel.ShowResults");
-                            }
-                            else
-                            {
-                                // Remove all empty lines if not specified for astyle
-                                // Why? Commented out for now, as it conflicts with HaxeAStyleDialog
-                                //if (!optionData.Contains("--delete-empty-lines"))
-                                //{
-                                //    resultData = Regex.Replace(resultData, @"^\s+$[\r\n]*", Environment.NewLine, RegexOptions.Multiline);
-                                //}
-                                doc.SciControl.Text = resultData;
-                                doc.SciControl.ConvertEOLs(doc.SciControl.EOLMode);
-                            }
-                            break;
+                        TraceManager.Add(TextHelper.GetString("Info.CouldNotFormat"), -3);
+                        PluginBase.MainForm.CallCommand("PluginCommand", "ResultsPanel.ShowResults");
                     }
+                    else
+                    {
+                        doc.SciControl.Text = output;
+                        doc.SciControl.ConvertEOLs(doc.SciControl.EOLMode);
+                    }
+                        
                 }
                 catch (Exception)
                 {
@@ -360,6 +337,15 @@ namespace CodeFormatter
                 CurrentPos = oldPos;
                 doc.SciControl.EndUndoAction();
             }
+        }
+
+        static IFormatter GetFormatter(FormatterState state)
+        {
+            if (state.Command == "$AStyle")
+                return new AStyleFormatter(state.ToOptions(), state.File); //TODO: maybe move AStyle formatter from external file to internal?
+            
+            return new ProcessFormatter(state);
+
         }
 
         /// <summary>

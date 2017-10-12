@@ -12,14 +12,16 @@ namespace CodeFormatter.Preferences
     public class FormatterState
     {
         public string File { get; }
-        public string Language { get; }
-        
+        public string Command { get; }
+        public string Language { get; set; }
+
         public Dictionary<string, FormatterOption> Options { get; set; } = new Dictionary<string, FormatterOption>();
         public string[] AdditionalArgs { get; set; }
 
-        public FormatterState(string file)
+        public FormatterState(string file, string cmd)
         {
             File = file;
+            Command = cmd;
         }
 
         public void Add(FormatterOption opt)
@@ -32,7 +34,7 @@ namespace CodeFormatter.Preferences
         /// </summary>
         public IEnumerable<string> ToOptions()
         {
-            return Options.Values.Select(o => FormatterHelper.ProcessArgument(o.Arg, id => Options[id].Value)).Concat(AdditionalArgs);
+            return AdditionalArgs.Concat(Options.Values.Select(o => FormatterHelper.ProcessArgument(o.Arg, id => Options[id].Value)));
         }
 
         public override string ToString()
