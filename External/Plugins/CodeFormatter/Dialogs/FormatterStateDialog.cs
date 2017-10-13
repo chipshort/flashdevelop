@@ -5,25 +5,19 @@ using ScintillaNet;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using PluginCore.Localization;
-using System.Reflection;
 using System.Runtime.Serialization;
-using System.Text.RegularExpressions;
 using System.Windows.Forms.Design;
-using LitJson;
-using PluginCore.Helpers;
 
 namespace CodeFormatter.Dialogs
 {
-    public class HaxeAStyleDialog : Form, IWindowsFormsEditorService
+    public class FormatterStateDialog : Form, IWindowsFormsEditorService
     {
-        private readonly ScintillaControl txtExample;
-        private readonly Dictionary<string, Control> mapping = new Dictionary<string, Control>();
+        readonly ScintillaControl txtExample;
+        readonly Dictionary<string, Control> mapping = new Dictionary<string, Control>();
 
-        string exampleCode;
         string formatterFile;
         FormatterDefinition formatter;
 
@@ -34,7 +28,6 @@ namespace CodeFormatter.Dialogs
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnCancel;
         private CheckBox checkCurrentFile;
-        private ComboBox cbFormatter;
 
         /// <summary>
         /// Required designer variable.
@@ -65,7 +58,6 @@ namespace CodeFormatter.Dialogs
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
             this.checkCurrentFile = new System.Windows.Forms.CheckBox();
-            this.cbFormatter = new System.Windows.Forms.ComboBox();
             this.SuspendLayout();
             // 
             // tabControl
@@ -126,22 +118,11 @@ namespace CodeFormatter.Dialogs
             this.checkCurrentFile.UseVisualStyleBackColor = false;
             this.checkCurrentFile.CheckedChanged += new System.EventHandler(this.checkExampleFile_CheckedChanged);
             // 
-            // cbFormatter
-            // 
-            this.cbFormatter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cbFormatter.FormattingEnabled = true;
-            this.cbFormatter.Location = new System.Drawing.Point(637, 5);
-            this.cbFormatter.Name = "cbFormatter";
-            this.cbFormatter.Size = new System.Drawing.Size(121, 21);
-            this.cbFormatter.TabIndex = 14;
-            this.cbFormatter.SelectionChangeCommitted += new System.EventHandler(this.cbFormatter_SelectionChangeCommitted);
-            // 
             // HaxeAStyleDialog
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(764, 506);
-            this.Controls.Add(this.cbFormatter);
             this.Controls.Add(this.pnlSci);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnCancel);
@@ -162,18 +143,14 @@ namespace CodeFormatter.Dialogs
 
         #endregion
 
-        public HaxeAStyleDialog(FormatterState state)
+        public FormatterStateDialog(FormatterState state)
         {
             InitializeComponent();
             InitializeLocalization();
 
-            //DiscoverFormatters();
-
             var currentDoc = PluginBase.MainForm.CurrentDocument;
             if (string.IsNullOrEmpty(currentDoc?.SciControl?.Text) || currentDoc.SciControl.ConfigurationLanguage != "haxe")
-            {
                 checkCurrentFile.Enabled = false;
-            }
 
             this.Font = PluginBase.Settings.DefaultFont;
 
@@ -297,8 +274,9 @@ namespace CodeFormatter.Dialogs
 
         internal FormatterState ToFormatterState()
         {
-            var state = new FormatterState(formatterFile);
+            var state = new FormatterState(formatterFile, formatter.Command);
             state.AdditionalArgs = formatter.AdditionalArgs;
+            state.Language = formatter.Language;
 
             foreach (var c in mapping)
             {
@@ -366,28 +344,6 @@ namespace CodeFormatter.Dialogs
             return null;
         }
 
-        string GetArg(Control c)
-        {
-            var checkBox = c as CheckBox;
-            var numUpDown = c as NumericUpDown;
-            var comboBox = c as ComboBox;
-
-            if (checkBox != null)
-            {
-                return GetArg(checkBox);
-            }
-            if (numUpDown != null)
-            {
-                return GetArg(numUpDown);
-            }
-            if (comboBox != null)
-            {
-                return GetArg(comboBox);
-            }
-
-            return null;
-        }
-
         string GetMapping(string id)
         {
             Control ctrl;
@@ -419,7 +375,7 @@ namespace CodeFormatter.Dialogs
         /// <summary>
         /// Helper method to apply the selected AStyle settings to the text
         /// </summary>
-        private void ReformatExample()
+        void ReformatExample()
         {
             AStyleInterface astyle = new AStyleInterface();
             string[] options = ToFormatterState().ToOptions().ToArray();
@@ -427,7 +383,7 @@ namespace CodeFormatter.Dialogs
             var firstLine = txtExample.FirstVisibleLine;
 
             txtExample.IsReadOnly = false;
-            txtExample.Text = exampleCode;
+            txtExample.Text = (tabControl.SelectedTab?.Tag as Category)?.Code ?? formatter.Code;
 
             var currentDoc = PluginBase.MainForm.CurrentDocument;
             if (checkCurrentFile.Checked && currentDoc?.SciControl != null)
@@ -441,6 +397,40 @@ namespace CodeFormatter.Dialogs
             txtExample.IsReadOnly = true;
 
             txtExample.FirstVisibleLine = firstLine;
+        }
+
+        void ValidateControls()
+        {
+            foreach (var opt in mapping) //Enable everything
+                opt.Value.Enabled = true;
+
+            //Lookup what needs to be disabled
+            foreach (var opt in mapping)
+            {
+                var checkBox = opt.Value as CheckBox;
+                var comboBox = opt.Value as ComboBox;
+
+                if (checkBox != null)
+                {
+                    var check = (Check) checkBox.Tag;
+                    if (!checkBox.Enabled)
+                        foreach (var sub in check.Suboptions)
+                            mapping[sub.Id].Enabled = checkBox.Checked;
+                }
+                else
+                {
+                    var select = (SelectData) comboBox?.SelectedItem;
+                    if (select?.Disables != null)
+                        foreach (var disabled in select.Disables)
+                        {
+                            Control ctrl;
+                            if (!mapping.TryGetValue(disabled, out ctrl))
+                                throw new FormatterException($"The formatter references an option \"{disabled}\", but it does not exist");
+
+                            ctrl.Enabled = false;
+                        }
+                }
+            }
         }
 
         void LoadFormatter(string filename)
@@ -503,19 +493,7 @@ namespace CodeFormatter.Dialogs
         {
             if (e.TabPage == null) return;
 
-            //update example code if available
-            var cat = (Category)e.TabPage.Tag;
-
-            if (cat.Code != null)
-                exampleCode = cat.Code;
-
             ReformatExample();
-        }
-
-        void cbFormatter_SelectionChangeCommitted(object sender, EventArgs e)
-        {
-            var file = (string) cbFormatter.SelectedItem;
-            LoadFormatter(file);
         }
 
         const int SubPad = 20;

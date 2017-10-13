@@ -79,7 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AStyle\AStyleInterface.cs" />
-    <Compile Include="Dialogs\HaxeAStyleDialog.cs">
+    <Compile Include="Dialogs\FormatterStateDialog.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Formatter\ASFormatter.cs" />

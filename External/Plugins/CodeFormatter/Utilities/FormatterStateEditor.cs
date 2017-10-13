@@ -20,7 +20,7 @@ namespace CodeFormatter.Utilities
         {
             var formatter = (FormatterState) value;
             
-            var dialog = new HaxeAStyleDialog(formatter);
+            var dialog = new FormatterStateDialog(formatter);
 
             var result = dialog.ShowDialog(PluginCore.PluginBase.MainForm);
             if (result == DialogResult.OK)
