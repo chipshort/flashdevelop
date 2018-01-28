@@ -328,7 +328,7 @@ namespace SourceControl.Actions
             if (result == null)
                 return false;
 
-            if (addBuffer.Remove(path) || result.Status == VCItemStatus.Unknown)
+            if (!PluginMain.SCSettings.DisableAddBar && (addBuffer.Remove(path) || result.Status == VCItemStatus.Unknown))
             {
                 var yes = TextHelper.GetString("Label.Yes");
                 var no = TextHelper.GetString("Label.No");

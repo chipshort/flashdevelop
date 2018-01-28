@@ -120,5 +120,10 @@ namespace SourceControl
         [DisplayName("Never create a commit when moving, deleting, etc. files ")]
         [LocalizedDescription("SourceControl.Description.NeverAskForCommit")]
         public bool NeverCommit { get; set; }
+
+        [DefaultValue(false)]
+        [DisplayName("Disable Add bar")]
+        [LocalizedDescription("SourceControl.Description.DisableAddBar")]
+        public bool DisableAddBar { get; set; }
     }
 }
