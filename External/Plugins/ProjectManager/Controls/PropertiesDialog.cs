@@ -1,19 +1,14 @@
 using System;
 using System.IO;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 using ProjectManager.Projects;
 using ProjectManager.Helpers;
 using PluginCore;
 using PluginCore.Managers;
 using PluginCore.Localization;
-using ProjectManager.Controls.AS2;
-using ProjectManager.Controls.AS3;
 using PluginCore.Controls;
-using System.Collections;
 using ProjectManager.Actions;
 using System.Collections.Generic;
 using Ookii.Dialogs;
@@ -684,7 +679,6 @@ namespace ProjectManager.Controls
             // 
             // labelUseGlobal
             // 
-            this.labelUseGlobal.AutoSize = true;
             this.labelUseGlobal.Location = new System.Drawing.Point(8, 18);
             this.labelUseGlobal.Name = "labelUseGlobal";
             this.labelUseGlobal.Size = new System.Drawing.Size(154, 13);
@@ -741,8 +735,7 @@ namespace ProjectManager.Controls
             this.customTextBox.TextChanged += new EventHandler(this.customTextBox_TextChanged);
             // 
             // labelUseCustom
-            // 
-            this.labelUseCustom.AutoSize = true;
+            //
             this.labelUseCustom.Location = new System.Drawing.Point(8, 18);
             this.labelUseCustom.Name = "labelUseCustom";
             this.labelUseCustom.Size = new System.Drawing.Size(213, 13);

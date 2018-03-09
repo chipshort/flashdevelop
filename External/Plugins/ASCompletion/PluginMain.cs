@@ -1,5 +1,4 @@
 using System;
-using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -183,8 +182,6 @@ namespace ASCompletion
             {
                 // ignore all events when leaving
                 if (PluginBase.MainForm.ClosingEntirely) return;
-                // current active document
-                ITabbedDocument doc = PluginBase.MainForm.CurrentDocument;
 
                 // application start
                 if (!started && e.Type == EventType.UIStarted)
@@ -196,6 +193,8 @@ namespace ASCompletion
                     this.pluginUI.UpdateAfterTheme();
                 }
 
+                // current active document
+                ITabbedDocument doc = PluginBase.MainForm.CurrentDocument;
                 // editor ready?
                 if (doc == null) return;
                 ScintillaControl sci = doc.IsEditable ? doc.SciControl : null;
@@ -203,7 +202,6 @@ namespace ASCompletion
                 //
                 //  Events always handled
                 //
-                bool isValid;
                 DataEvent de;
                 switch (e.Type)
                 {
@@ -248,7 +246,7 @@ namespace ASCompletion
                         if (!doc.IsEditable) return;
                         ASContext.Context.CheckModel(false);
                         // toolbar
-                        isValid = ASContext.Context.IsFileValid;
+                        var isValid = ASContext.Context.IsFileValid;
                         if (isValid && !PluginBase.MainForm.SavingMultiple)
                         {
                             if (ASContext.Context.Settings.CheckSyntaxOnSave) CheckSyntax(null, null);
@@ -332,7 +330,6 @@ namespace ASCompletion
                                 }
                                 e.Handled = true;
                             }
-
                             // send a UserClasspath
                             else if (command == "ASCompletion.GetUserClasspath")
                             {
@@ -375,7 +372,6 @@ namespace ASCompletion
                                 }
                                 e.Handled = true;
                             }
-
                             // show a language's compiler settings
                             else if (command == "ASCompletion.ShowSettings")
                             {
@@ -394,20 +390,17 @@ namespace ASCompletion
                                 }
                                 PluginBase.MainForm.ShowSettingsDialog(name, filter);
                             }
-
                             // Open types explorer dialog
                             else if (command == "ASCompletion.TypesExplorer")
                             {
                                 TypesExplorer(null, null);
                             }
-
                             // call the Flash IDE
                             else if (command == "ASCompletion.CallFlashIDE")
                             {
                                 if (flashErrorsWatcher == null) flashErrorsWatcher = new FlashErrorsWatcher();
                                 e.Handled = CallFlashIDE.Run(settingObject.PathToFlashIDE, cmdData);
                             }
-
                             // create Flash 8+ trust file
                             else if (command == "ASCompletion.CreateTrustFile")
                             {
@@ -448,7 +441,6 @@ namespace ASCompletion
                                 foreach (PathModel cp in ASContext.Context.Classpath)
                                     cp.EnableWatcher();
                             }
-
                             // Return requested language SDK list
                             else if (command == "ASCompletion.InstalledSDKs")
                             {
@@ -468,7 +460,6 @@ namespace ASCompletion
                                 initializedCache = true;
                             }
                         }
-
                         // Create a fake document from a FileModel
                         else if (command == "ProjectManager.OpenVirtualFile")
                         {
@@ -494,7 +485,13 @@ namespace ASCompletion
                                 initializedCache = false;
                             }
                         }
-                        
+                        else if (command == "ProjectManager.Menu")
+                        {
+                            var image = PluginBase.MainForm.FindImage("202");
+                            var item = new ToolStripMenuItem(TextHelper.GetString("Label.TypesExplorer"), image, TypesExplorer, Keys.Control | Keys.J);
+                            PluginBase.MainForm.RegisterShortcutItem("FlashToolsMenu.TypeExplorer", item);
+                            ((ToolStripMenuItem)de.Data).DropDownItems.Insert(6, item);
+                        }
                         break;
                 }
 
@@ -736,12 +733,6 @@ namespace ASCompletion
                 quickBuildItem = item;
 
                 menu.DropDownItems.Add(new ToolStripSeparator());
-
-                // type explorer
-                image = mainForm.FindImage("202");
-                item = new ToolStripMenuItem(TextHelper.GetString("Label.TypesExplorer"), image, new EventHandler(TypesExplorer), Keys.Control | Keys.J);
-                PluginBase.MainForm.RegisterShortcutItem("FlashToolsMenu.TypeExplorer", item);
-                menu.DropDownItems.Add(item);
 
                 // model cleanup
                 image = mainForm.FindImage("153");
@@ -1101,8 +1092,14 @@ namespace ASCompletion
                             astCache.MarkAsOutdated(c);
                 }
 
-                astCacheTimer.Stop();
-                astCacheTimer.Start();
+                try
+                {
+                    astCacheTimer.Stop();
+                    astCacheTimer.Start();
+                }
+                catch
+                {
+                }
 
                 var sci1 = DocumentManager.FindDocument(obj.FileName)?.SplitSci1;
                 var sci2 = DocumentManager.FindDocument(obj.FileName)?.SplitSci2;
@@ -1217,10 +1214,9 @@ namespace ASCompletion
 
             // get word at mouse position
             int style = sci.BaseStyleAt(position);
-            if (!ASComplete.IsTextStyle(style))
-                return;
-            position = sci.WordEndPosition(position, true);
-            ASResult result = ASComplete.GetExpressionType(sci, position);
+            if (!ASComplete.IsTextStyle(style)) return;
+            position = ASComplete.ExpressionEndPosition(sci, position);
+            var result = ASComplete.GetExpressionType(sci, position, false, true);
 
             // set tooltip
             if (!result.IsNull())
@@ -1276,7 +1272,7 @@ namespace ASCompletion
                 char c = (char)sci.CharAt(pos);
                 if ((c == ',' || c == '(') && sci.BaseStyleAt(pos) == 0)
                     sci.Colourise(0, -1);
-                ASComplete.HandleFunctionCompletion(sci, false, true);
+                ASComplete.HandleFunctionCompletion(sci, false);
             }
         }
 
