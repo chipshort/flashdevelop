@@ -454,9 +454,8 @@ namespace PluginCore.Controls
             Int32 len = word.Length;
             Int32 maxLen = 0;
             Int32 lastScore = 0;
-            /// <summary>
-            /// FILTER ITEMS
-            /// </summary>
+
+            // FILTER ITEMS
             if (PluginBase.MainForm.Settings.AutoFilterList || fullList)
             {
                 List<ICompletionListItem> found;
@@ -472,16 +471,14 @@ namespace PluginCore.Controls
                     List<ItemMatch> temp = new List<ItemMatch>(allItems.Count);
                     Int32 n = allItems.Count;
                     Int32 i = 0;
-                    Int32 score;
                     lastScore = 99;
-                    ICompletionListItem item;
                     exactMatchInList = false;
                     smartMatchInList = false;
                     while (i < n)
                     {
-                        item = allItems[i];
+                        ICompletionListItem item = allItems[i];
                         // compare item's label with the searched word
-                        score = SmartMatch(item.Label, word, len);
+                        Int32 score = SmartMatch(item.Label, word, len);
                         if (score > 0)
                         {
                             // first match found
@@ -558,7 +555,7 @@ namespace PluginCore.Controls
                         {
                             if (lastScore > 3 || (lastScore > 2 && defaultItem.Label.StartsWith(word, StringComparison.OrdinalIgnoreCase)))
                             {
-                                lastIndex = lastIndex = TestDefaultItem(lastIndex, word, len);
+                                lastIndex = TestDefaultItem(lastIndex, word, len);
                             }
                         }
                         completionList.SelectedIndex = lastIndex;

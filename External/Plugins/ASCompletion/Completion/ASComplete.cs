@@ -2381,11 +2381,13 @@ namespace ASCompletion.Completion
                     list.Insert(itemIndex, newItem);
                 }
 
+                list.Sort(new CompletionItemCaseSensitiveImportComparer());
                 CompletionList.Show(list, autoHide, tail);
                 CompletionList.SelectItem(newItemType);
             }
             else
             {
+                list.Sort(new CompletionItemCaseSensitiveImportComparer());
                 CompletionList.Show(list, autoHide, tail);
             }
 
