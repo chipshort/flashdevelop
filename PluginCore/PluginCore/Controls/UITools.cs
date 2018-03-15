@@ -336,8 +336,8 @@ namespace PluginCore.Controls
             CompletionList.Hide();
             codeTip.Hide();
             callTip.Hide();
-            simpleTip.Hide();
-            errorTip.Hide();
+            //simpleTip.Hide();
+            //errorTip.Hide();
         }
         
         private void OnTextInserted(ScintillaControl sci, int position, int length, int linesAdded)
