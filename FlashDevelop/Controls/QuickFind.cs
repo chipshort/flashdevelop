@@ -38,7 +38,6 @@ namespace FlashDevelop.Controls
         private ToolStripLabel findLabel;
         private ToolStripLabel infoLabel;
         private Timer typingTimer;
-        private DockPanel dockPanel;
 
         private IEditorController ownerController;
 

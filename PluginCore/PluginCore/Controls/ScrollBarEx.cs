@@ -239,7 +239,7 @@ namespace PluginCore.Controls
                                         HandleRef hSrcDC, int xSrc, int ySrc, int dwRop);
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         public static extern IntPtr SendMessage(HandleRef hWnd, int msg, IntPtr wParam, IntPtr lParam);
-        static int count = 0;
+
         /// <summary>
         /// Draws the background.
         /// </summary>
