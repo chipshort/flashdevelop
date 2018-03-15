@@ -4,6 +4,7 @@ using System.Text;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Linq;
 using WeifenLuo.WinFormsUI.Docking;
 using PluginCore.Localization;
 using FlashDevelop.Managers;
@@ -14,9 +15,111 @@ using PluginCore.Helpers;
 using PluginCore.Controls;
 using ScintillaNet;
 using PluginCore;
+using FlashDevelop.Helpers;
 
 namespace FlashDevelop.Docking
 {
+    public class CustomFloatWindow : FloatWindow, IEventHandler
+    {
+        private IEditorController editorController;
+
+        public CustomFloatWindow(DockPanel dockPanel, DockPane pane)
+            : base(dockPanel, pane)
+        {
+            this.InitializeComponents();
+        }
+
+        public CustomFloatWindow(DockPanel dockPanel, DockPane pane, Rectangle bounds)
+            : base(dockPanel, pane, bounds)
+        {
+            this.InitializeComponents();
+        }
+
+        private void InitializeComponents()
+        {
+            FormBorderStyle = FormBorderStyle.Sizable;
+            Icon = new Icon(ResourceHelper.GetStream("FlashDevelopIcon.ico"));
+            ShowInTaskbar = true;
+            Owner = null;
+            DoubleClickTitleBarToDock = false;
+            editorController = new WinFormsEditorController(this);
+
+            this.Controls.Add((Control)editorController.QuickFindControl);
+
+            ThemeManager.WalkControls(this);
+            EventManager.AddEventHandler(this, EventType.ApplyTheme);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            EventManager.RemoveEventHandler(this);
+            base.Dispose(disposing);
+        }
+
+        public override DockState DockState
+        {
+            get { return DockState.FloatDocument; }
+        }
+
+        public override bool AllowEndUserDocking
+        {
+            get
+            {
+                return false;
+            }
+            set
+            {
+                base.AllowEndUserDocking = value;
+            }
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            bool? processKeys = this.editorController.ProcessCmdKey(keyData);
+
+            if (processKeys.HasValue)
+            {
+                return processKeys.Value;
+            }
+
+            msg.HWnd = Globals.MainForm.Handle;
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        public void HandleEvent(object sender, NotifyEvent e, HandlingPriority priority)
+        {
+            ThemeManager.WalkControls(this);
+        }
+
+        protected override void SetText()
+        {
+            DockPane theOnlyPane = null;
+
+            if (VisibleNestedPanes.Count == 1)
+                theOnlyPane = VisibleNestedPanes[0];
+            else if (VisibleNestedPanes.Count > 0)
+                theOnlyPane = VisibleNestedPanes.FirstOrDefault(x => x == ActiveControl);
+
+            if (theOnlyPane == null || theOnlyPane.ActiveContent == null)
+                Text = " "; // use " " instead of string.Empty because the whole title bar will disappear when ControlBox is set to false.
+            else
+                Text = theOnlyPane.ActiveContent.DockHandler.TabText;
+        }
+    }
+
+    public class CustomFloatDocumentWindowFactory : DockPanelExtender.IFloatDocumentWindowFactory
+    {
+        public FloatWindow CreateFloatDocumentWindow(DockPanel dockPanel, DockPane pane, Rectangle bounds)
+        {
+            return new CustomFloatWindow(dockPanel, pane, bounds);
+        }
+
+        public FloatWindow CreateFloatDocumentWindow(DockPanel dockPanel, DockPane pane)
+        {
+            return new CustomFloatWindow(dockPanel, pane);
+        }
+    }
+
     public class TabbedDocument : DockContent, ITabbedDocument
     {
         private Timer focusTimer;
@@ -40,8 +143,25 @@ namespace FlashDevelop.Docking
             this.ControlAdded += new ControlEventHandler(this.DocumentControlAdded);
             UITools.Manager.OnMarkerChanged += new UITools.LineEventHandler(this.OnMarkerChanged);
             this.DockPanel = Globals.MainForm.DockPanel;
+            // If we are currently inside a floating document window, open our new TabbedDocument inside it
+            if (this.DockPanel.ActiveDocumentPane != null && this.DockPanel.ActiveDocumentPane.IsFloat)
+            {
+                if (this.DockPanel.ActivePane.ParentForm != Globals.MainForm)
+                {
+                    foreach (DockPane pane in DockPanel.Panes)
+                        if (pane.DockState == DockState.Document)
+                        {
+                            this.PanelPane = pane;
+                            break;
+                        }
+                    this.FloatPane = this.DockPanel.ActiveDocumentPane;
+                    this.DockState = DockState.FloatDocument;
+
+                    if (this.DockPanel.ActivePane != this.DockPanel.ActiveDocumentPane) this.DockPanel.ActiveDocumentPane.Activate();
+                }
+            }
             this.Font = Globals.Settings.DefaultFont;
-            this.DockAreas = DockAreas.Document;
+            this.DockAreas = DockAreas.Document | DockAreas.FloatDocument;
             this.BackColor = Color.White;
             this.useCustomIcon = false;
             this.StartBackupTiming();
@@ -278,8 +398,8 @@ namespace FlashDevelop.Docking
                 this.editor.MarkerDeleteAll(2);
                 this.IsModified = false;
             };
-            this.editor.FocusChanged += new FocusHandler(this.EditorFocusChanged);
-            this.editor2.FocusChanged += new FocusHandler(this.EditorFocusChanged);
+            this.editor.GotFocus += EditorFocusChanged;
+            this.editor2.GotFocus += EditorFocusChanged;
             this.editor.UpdateSync += new UpdateSyncHandler(this.EditorUpdateSync);
             this.editor2.UpdateSync += new UpdateSyncHandler(this.EditorUpdateSync);
             this.Controls.Add(this.splitContainer);
@@ -308,14 +428,11 @@ namespace FlashDevelop.Docking
         /// <summary>
         /// When the user changes to sci, block events from inactive sci
         /// </summary>
-        private void EditorFocusChanged(ScintillaControl sender)
+        private void EditorFocusChanged(object sender, EventArgs e)
         {
-            if (sender.IsFocus)
-            {
-                this.lastEditor = sender;
-                this.editor.DisableAllSciEvents = (sender == editor2);
-                this.editor2.DisableAllSciEvents = (sender == editor);
-            }
+            this.lastEditor = (ScintillaControl)sender;
+            this.editor.DisableAllSciEvents = (sender == editor2);
+            this.editor2.DisableAllSciEvents = (sender == editor);
         }
 
         /// <summary>

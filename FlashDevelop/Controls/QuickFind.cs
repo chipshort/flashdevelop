@@ -4,6 +4,7 @@ using System.Collections;
 using System.Windows.Forms;
 using System.Drawing.Drawing2D;
 using System.Collections.Generic;
+using System.Linq;
 using PluginCore.Localization;
 using FlashDevelop.Utilities;
 using FlashDevelop.Helpers;
@@ -15,6 +16,7 @@ using PluginCore.Helpers;
 using ScintillaNet.Configuration;
 using ScintillaNet;
 using PluginCore;
+using WeifenLuo.WinFormsUI.Docking;
 
 namespace FlashDevelop.Controls
 {
@@ -36,14 +38,31 @@ namespace FlashDevelop.Controls
         private ToolStripLabel findLabel;
         private ToolStripLabel infoLabel;
         private Timer typingTimer;
+        private DockPanel dockPanel;
 
-        public QuickFind()
+        private IEditorController ownerController;
+
+        public QuickFind(IEditorController ownerController)
         {
+            if (ownerController == null)
+            {
+                throw new ArgumentNullException("ownerController");
+            }
+
+            this.ownerController = ownerController;
+
             this.Font = Globals.Settings.DefaultFont;
             this.InitializeComponent();
             this.InitializeGraphics();
             this.InitializeEvents();
             this.InitializeTimers();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            PluginBase.MainForm.DockPanel.ActivePaneChanged -= OnActivePaneChanged;
+            EventManager.RemoveEventHandler(this);
+            base.Dispose(disposing);
         }
 
         #region Internal Events
@@ -54,6 +73,7 @@ namespace FlashDevelop.Controls
         private void InitializeEvents()
         {
             EventManager.AddEventHandler(this, EventType.FileSwitch | EventType.ApplyTheme);
+            PluginBase.MainForm.DockPanel.ActivePaneChanged += OnActivePaneChanged;
         }
 
         /// <summary>
@@ -69,6 +89,14 @@ namespace FlashDevelop.Controls
             {
                 this.InitializeGraphics();
             }
+        }
+
+        /// <summary>
+        /// When dock changes, applies the padding to documents
+        /// </summary>
+        private void OnActivePaneChanged(Object sender, EventArgs e)
+        {
+            this.ApplyFixedDocumentPadding();
         }
 
         #endregion
@@ -197,7 +225,7 @@ namespace FlashDevelop.Controls
         #endregion
 
         #region Methods And Event Handlers
-        
+
         /// <summary>
         /// The document that contains this control
         /// </summary>
@@ -344,7 +372,7 @@ namespace FlashDevelop.Controls
         {
             if (!Globals.Settings.DisableFindOptionSync)
             {
-                Globals.MainForm.SetMatchCase(this, this.matchCaseCheckBox.Checked);
+                this.ownerController.SetMatchCase(this, this.matchCaseCheckBox.Checked);
             }
         }
 
@@ -355,7 +383,7 @@ namespace FlashDevelop.Controls
         {
             if (!Globals.Settings.DisableFindOptionSync)
             {
-                Globals.MainForm.SetWholeWord(this, this.wholeWordCheckBox.Checked);
+                this.ownerController.SetWholeWord(this, this.wholeWordCheckBox.Checked);
             }
         }
 
@@ -391,7 +419,7 @@ namespace FlashDevelop.Controls
                 sci.SetSel(sci.CurrentPos, sci.CurrentPos);
                 sci.RemoveHighlights();
             }
-            Globals.MainForm.SetFindText(this, this.findTextBox.Text);
+            this.ownerController.SetFindText(this, this.findTextBox.Text);
         }
 
         /// <summary>
@@ -547,10 +575,13 @@ namespace FlashDevelop.Controls
         /// </summary>
         public void ApplyFixedDocumentPadding()
         {
-            foreach (ITabbedDocument castable in Globals.MainForm.Documents)
+            var parentForm = this.FindForm();
+
+            if (parentForm == null) return;
+
+            foreach (TabbedDocument document in Globals.MainForm.DockPanel.Documents.OfType<TabbedDocument>())
             {
-                TabbedDocument document = castable as TabbedDocument;
-                if (document.IsEditable)
+                if (document.IsEditable && parentForm.Equals(document.Parent.FindForm()))
                 {
                     Rectangle find = this.RectangleToScreen(this.ClientRectangle);
                     Rectangle doc = document.RectangleToScreen(document.ClientRectangle);
@@ -575,7 +606,7 @@ namespace FlashDevelop.Controls
         private void MoreButtonClick(Object sender, EventArgs e)
         {
             this.CloseButtonClick(null, null);
-            PluginBase.MainForm.CallCommand("FindAndReplace", null);
+            this.ownerController.ShowFindAndReplace();
         }
 
         /// <summary>
@@ -840,7 +871,7 @@ namespace FlashDevelop.Controls
         {
             public event KeyEscapeEvent OnKeyEscape;
 
-            public EscapeTextBox() : base() 
+            public EscapeTextBox() : base()
             {
                 this.Control.PreviewKeyDown += new PreviewKeyDownEventHandler(this.OnPreviewKeyDown);
             }

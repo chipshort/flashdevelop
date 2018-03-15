@@ -54,17 +54,30 @@ namespace FlashDevelop.Dialogs
 
         private const string TraceGroup = "FindInFiles";
         
-        public FRInFilesDialog()
+        private IEditorController ownerController;
+
+        static FRInFilesDialog()
         {
-            this.Owner = Globals.MainForm;
+            TraceManager.RegisterTraceGroup(TraceGroup, TextHelper.GetString("FlashDevelop.Label.FindAndReplaceResults"), false, true, Globals.MainForm.FindImage("209"));
+        }
+
+        public FRInFilesDialog(IEditorController ownerController)
+        {
+            if (ownerController == null)
+            {
+                throw new ArgumentNullException("ownerController");
+            }
+
+            this.ownerController = ownerController;
+
+            if (this.ownerController.Owner is Form) this.Owner = (Form)this.ownerController.Owner;
+
             this.Font = Globals.Settings.DefaultFont;
             this.FormGuid = "d2dbaf53-35ea-4632-b038-5428c9784a32";
             this.InitializeComponent();
             this.ApplyLocalizedTexts();
             this.InitializeGraphics();
             this.UpdateSettings();
-
-            TraceManager.RegisterTraceGroup(TraceGroup, TextHelper.GetString("FlashDevelop.Label.FindAndReplaceResults"), false, true, Globals.MainForm.FindImage("209"));
         }
 
         #region Windows Form Designer Generated Code
@@ -465,7 +478,7 @@ namespace FlashDevelop.Dialogs
         public void UpdateSettings()
         {
             FRDialogGenerics.UpdateComboBoxItems(this.folderComboBox);
-            Boolean useGroups = Globals.MainForm.Settings.UseListViewGrouping;
+            Boolean useGroups = Globals.Settings.UseListViewGrouping;
             this.resultsView.ShowGroups = useGroups;
             this.resultsView.GridLines = !useGroups;
         }
@@ -601,24 +614,24 @@ namespace FlashDevelop.Dialogs
         {
             using (VistaFolderBrowserDialog fbd = new VistaFolderBrowserDialog())
             {
-                fbd.Multiselect = true;
-                String curDir = this.folderComboBox.Text;
-                if (curDir == "<Project>")
+            fbd.Multiselect = true;
+            String curDir = this.folderComboBox.Text;
+            if (curDir == "<Project>")
+            {
+                if (PluginBase.CurrentProject != null)
                 {
-                    if (PluginBase.CurrentProject != null)
-                    {
-                        String projectPath = PluginBase.CurrentProject.ProjectPath;
-                        curDir = Path.GetDirectoryName(projectPath);
-                    }
-                    else curDir = Globals.MainForm.WorkingDirectory;
+                    String projectPath = PluginBase.CurrentProject.ProjectPath;
+                    curDir = Path.GetDirectoryName(projectPath);
                 }
-                if (Directory.Exists(curDir)) fbd.SelectedPath = curDir;
-                if (fbd.ShowDialog() == DialogResult.OK && Directory.Exists(fbd.SelectedPath))
-                {
-                    this.folderComboBox.Text = String.Join(";", fbd.SelectedPaths);
-                    this.folderComboBox.SelectionStart = this.folderComboBox.Text.Length;
-                }
+                else curDir = Globals.MainForm.WorkingDirectory;
             }
+            if (Directory.Exists(curDir)) fbd.SelectedPath = curDir;
+            if (fbd.ShowDialog() == DialogResult.OK && Directory.Exists(fbd.SelectedPath))
+            {
+                this.folderComboBox.Text = String.Join(";", fbd.SelectedPaths);
+                this.folderComboBox.SelectionStart = this.folderComboBox.Text.Length;
+            }
+        }
         }
 
         /// <summary>
@@ -704,8 +717,8 @@ namespace FlashDevelop.Dialogs
                     String message = TextHelper.GetString("Info.FoundInFiles");
                     String formatted = String.Format(message, matchCount, fileCount);
                     this.infoLabel.Text = formatted;
-                } 
-                else 
+                }
+                else
                 {
                     string groupData = TraceManager.CreateGroupDataUnique(TraceGroup);
                     Globals.MainForm.CallCommand("PluginCommand", "ResultsPanel.ClearResults;" + groupData);
@@ -768,7 +781,7 @@ namespace FlashDevelop.Dialogs
                     String message = TextHelper.GetString("Info.ReplacedInFiles");
                     String formatted = String.Format(message, matchCount, fileCount);
                     this.infoLabel.Text = formatted;
-                } 
+                }
                 else
                 {
                     string groupData = TraceManager.CreateGroupDataUnique(TraceGroup);
@@ -845,7 +858,7 @@ namespace FlashDevelop.Dialogs
             Globals.CurrentDocument.Activate();
             this.Hide();
         }
-        
+
         /// <summary>
         /// Setups the dialog on load
         /// </summary>
@@ -940,8 +953,8 @@ namespace FlashDevelop.Dialogs
                 this.cancelButton.Enabled = true;
                 this.replaceButton.Enabled = false;
                 this.findButton.Enabled = false;
-            } 
-            else 
+            }
+            else
             {
                 this.cancelButton.Enabled = false;
                 this.replaceButton.Enabled = true;

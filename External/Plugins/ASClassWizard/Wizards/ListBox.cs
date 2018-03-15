@@ -36,12 +36,12 @@ namespace ASClassWizard.Wizards
             e.DrawFocusRectangle();
             ListBoxItem item;
             Rectangle bounds = e.Bounds;
-            Size imageSize = _myImageList.ImageSize;
             try
             {
                 item = (ListBoxItem)Items[e.Index];
                 if (item.ImageIndex != -1)
                 {
+                    Size imageSize = _myImageList.ImageSize;
                     ImageList.Draw(e.Graphics, bounds.Left, bounds.Top, item.ImageIndex);
                     e.Graphics.DrawString(item.Text, e.Font, new SolidBrush(e.ForeColor),
                         bounds.Left + imageSize.Width, bounds.Top);
@@ -54,7 +54,7 @@ namespace ASClassWizard.Wizards
             }
             catch
             {
-                if (e.Index != -1)
+                if (e.Index != -1 && Items.Count > e.Index + 1)
                 {
                     e.Graphics.DrawString(Items[e.Index].ToString(), e.Font,
                         new SolidBrush(e.ForeColor), bounds.Left, bounds.Top);

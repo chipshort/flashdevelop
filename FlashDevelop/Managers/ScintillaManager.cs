@@ -250,6 +250,7 @@ namespace FlashDevelop.Managers
                 sci.UseHighlightGuides = !settings.HighlightGuide;
                 sci.Indent = settings.IndentSize;
                 sci.SmartIndentType = settings.SmartIndentType;
+                sci.Technology = settings.DrawingTechnology;
                 sci.IsBackSpaceUnIndents = settings.BackSpaceUnIndents;
                 sci.IsCaretLineVisible = settings.CaretLineVisible;
                 sci.IsIndentationGuides = settings.ViewIndentationGuides;
@@ -270,6 +271,7 @@ namespace FlashDevelop.Managers
                 sci.SetProperty("fold.html", Convert.ToInt32(settings.FoldHtml).ToString());
                 sci.SetProperty("lexer.cpp.track.preprocessor", "0");
                 sci.SetVirtualSpaceOptions((Int32)settings.VirtualSpaceMode);
+                sci.MultipleSelection = true;
                 sci.SetFoldFlags((Int32)settings.FoldFlags);
                 /**
                 * Set if themes should colorize the first margin
@@ -305,17 +307,27 @@ namespace FlashDevelop.Managers
                 /**
                 * Adjust caret policy based on settings
                 */
+                Color color = PluginBase.MainForm.GetThemeColor("ScrollBar.ForeColor");
+                String value = PluginBase.MainForm.GetThemeValue("ScrollBar.UseCustom");
+                Boolean usingCustomScrollBars = value == "True" || (value == null && color != Color.Empty);
                 if (settings.KeepCaretCentered)
                 {
                     sci.SetXCaretPolicy((Int32)(CaretPolicy.Jumps | CaretPolicy.Even), 30);
                     sci.SetYCaretPolicy((Int32)(CaretPolicy.Jumps | CaretPolicy.Even), 2);
+                    sci.SetVisiblePolicy((Int32)(CaretPolicy.Strict | CaretPolicy.Even), 0);
                 }
-                else // Match edge...
+                else if (!usingCustomScrollBars) // Match edge...
                 {
-                    sci.SetXCaretPolicy((Int32)CaretPolicy.Even, 0);
-                    sci.SetYCaretPolicy((Int32)CaretPolicy.Even, 0);
+                    sci.SetXCaretPolicy((Int32) CaretPolicy.Even, 0);
+                    sci.SetYCaretPolicy((Int32) CaretPolicy.Even, 0);
+                    sci.SetVisiblePolicy((Int32) (CaretPolicy.Strict | CaretPolicy.Even), 0);
                 }
-                sci.SetVisiblePolicy((Int32)(CaretPolicy.Strict | CaretPolicy.Even), 0);
+                else
+                {
+                    sci.SetXCaretPolicy((Int32)(CaretPolicy.Strict | CaretPolicy.Even | CaretPolicy.Slop), 15);
+                    sci.SetYCaretPolicy((Int32)(CaretPolicy.Strict | CaretPolicy.Even | CaretPolicy.Slop), 1);
+                    sci.SetVisiblePolicy((Int32)(CaretPolicy.Strict | CaretPolicy.Even), 1);
+                }
                 /**
                 * Set scroll range (if false, over-scroll mode is enabled)
                 */

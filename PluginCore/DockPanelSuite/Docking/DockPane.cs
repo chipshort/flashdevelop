@@ -60,7 +60,7 @@ namespace WeifenLuo.WinFormsUI.Docking
             if (floatWindow == null)
                 throw new ArgumentNullException("floatWindow");
 
-            InternalConstruct(content, DockState.Float, false, Rectangle.Empty, floatWindow.NestedPanes.GetDefaultPreviousPane(this), DockAlignment.Right, 0.5, show);
+            InternalConstruct(content, content != null && (content.DockHandler.DockAreas & DockAreas.FloatDocument) != 0 ? DockState.FloatDocument : DockState.Float, false, Rectangle.Empty, floatWindow.NestedPanes.GetDefaultPreviousPane(this), DockAlignment.Right, 0.5, show);
         }
 
         internal protected DockPane(IDockContent content, DockPane previousPane, DockAlignment alignment, double proportion, bool show)
@@ -73,7 +73,7 @@ namespace WeifenLuo.WinFormsUI.Docking
         [SuppressMessage("Microsoft.Naming", "CA1720:AvoidTypeNamesInParameters", MessageId = "1#")]
         internal protected DockPane(IDockContent content, Rectangle floatWindowBounds, bool show)
         {
-            InternalConstruct(content, DockState.Float, true, floatWindowBounds, null, DockAlignment.Right, 0.5, show);
+            InternalConstruct(content, content != null && (content.DockHandler.DockAreas & DockAreas.FloatDocument) != 0 ? DockState.FloatDocument : DockState.Float, true, floatWindowBounds, null, DockAlignment.Right, 0.5, show);
         }
 
         private void InternalConstruct(IDockContent content, DockState dockState, bool flagBounds, Rectangle floatWindowBounds, DockPane prevPane, DockAlignment alignment, double proportion, bool show)
@@ -91,7 +91,7 @@ namespace WeifenLuo.WinFormsUI.Docking
             SuspendLayout();
             SetStyle(ControlStyles.Selectable, false);
 
-            m_isFloat = (dockState == DockState.Float);
+            m_isFloat = (dockState == DockState.Float || dockState == DockState.FloatDocument);
 
             m_contents = new DockContentCollection();
             m_displayingContents = new DockContentCollection(this);
@@ -108,7 +108,12 @@ namespace WeifenLuo.WinFormsUI.Docking
             
             DockPanel.SuspendLayout(true);
             if (flagBounds)
-                FloatWindow = DockPanel.FloatWindowFactory.CreateFloatWindow(DockPanel, this, floatWindowBounds);
+            {
+                if (dockState == DockState.FloatDocument)
+                    FloatWindow = DockPanel.FloatDocumentWindowFactory.CreateFloatDocumentWindow(DockPanel, this, floatWindowBounds);
+                else
+                    FloatWindow = DockPanel.FloatWindowFactory.CreateFloatWindow(DockPanel, this, floatWindowBounds);
+            }
             else if (prevPane != null)
                 DockTo(prevPane.NestedPanesContainer, prevPane, alignment, proportion);
 
@@ -307,7 +312,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
                 int x = rectWindow.X;
                 int y = rectWindow.Y + (rectCaption.IsEmpty ? 0 : rectCaption.Height) +
-                    (DockState == DockState.Document ? rectTabStrip.Height : 0);
+                    (DockState == DockState.Document || DockState == DockState.FloatDocument ? rectTabStrip.Height : 0);
                 int width = rectWindow.Width;
                 int height = rectWindow.Height - rectCaption.Height - rectTabStrip.Height;
 
@@ -397,7 +402,8 @@ namespace WeifenLuo.WinFormsUI.Docking
                 if (DockState == DockState.Document ||
                     DockState == DockState.Hidden ||
                     DockState == DockState.Unknown ||
-                    (DockState == DockState.Float && FloatWindow.VisibleNestedPanes.Count <= 1))
+                    DockState == DockState.FloatDocument ||
+                    ((DockState == DockState.Float ) && FloatWindow.VisibleNestedPanes.Count <= 1))
                     return false;
                 else
                     return true;
@@ -415,7 +421,7 @@ namespace WeifenLuo.WinFormsUI.Docking
                 return;
 
             m_isActivated = value;
-            if (DockState != DockState.Document)
+            if (DockState != DockState.Document && DockState != DockState.FloatDocument)
                 RefreshChanges(false);
             OnIsActivatedChanged(EventArgs.Empty);
         }
@@ -433,6 +439,11 @@ namespace WeifenLuo.WinFormsUI.Docking
             m_isActiveDocumentPane = value;
             if (DockState == DockState.Document)
                 RefreshChanges();
+            else if (DockState == DockState.FloatDocument)
+            {
+                RefreshChanges();
+                if (value) FloatWindow?.SetText();
+            }
             OnIsActiveDocumentPaneChanged(EventArgs.Empty);
         }
 
@@ -452,7 +463,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
         public AppearanceStyle Appearance
         {
-            get {   return (DockState == DockState.Document) ? AppearanceStyle.Document : AppearanceStyle.ToolWindow;   }
+            get {   return (DockState == DockState.Document || DockState == Docking.DockState.FloatDocument) ? AppearanceStyle.Document : AppearanceStyle.ToolWindow;   }
         }
 
         internal Rectangle DisplayingRectangle
@@ -594,7 +605,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
             CaptionControl.RefreshChanges();
             TabStripControl.RefreshChanges();
-            if (DockState == DockState.Float)
+            if (DockState == DockState.Float || DockState == DockState.FloatDocument)
                 FloatWindow.RefreshChanges();
             if (DockHelper.IsDockStateAutoHide(DockState) && DockPanel != null)
             {
@@ -647,7 +658,7 @@ namespace WeifenLuo.WinFormsUI.Docking
                 SetParent(null);
                 Splitter.Parent = null;
             }
-            else if (DockState == DockState.Float)
+            else if (DockState == DockState.Float || DockState == DockState.FloatDocument)
             {
                 SetParent(FloatWindow);
                 Splitter.Parent = FloatWindow;
@@ -850,7 +861,7 @@ namespace WeifenLuo.WinFormsUI.Docking
             if (value == DockState.Unknown || value == DockState.Hidden)
                 throw new InvalidOperationException(Strings.DockPane_SetDockState_InvalidState);
 
-            if ((value == DockState.Float) == this.IsFloat)
+            if ((value == DockState.Float || value == DockState.FloatDocument) == this.IsFloat)
             {
                 InternalSetDockState(value);
                 return this;
@@ -904,7 +915,12 @@ namespace WeifenLuo.WinFormsUI.Docking
             if (!IsFloat)
                 DockWindow = DockPanel.DockWindows[DockState];
             else if (FloatWindow == null)
-                FloatWindow = DockPanel.FloatWindowFactory.CreateFloatWindow(DockPanel, this);
+            {
+                if (DockState == DockState.FloatDocument)
+                    FloatWindow = DockPanel.FloatDocumentWindowFactory.CreateFloatDocumentWindow(DockPanel, this);
+                else
+                    FloatWindow = DockPanel.FloatWindowFactory.CreateFloatWindow(DockPanel, this);
+            }
 
             if (contentFocused != null)
             {
@@ -1082,7 +1098,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
         private void InternalAddToDockList(INestedPanesContainer container, DockPane prevPane, DockAlignment alignment, double proportion)
         {
-            if ((container.DockState == DockState.Float) != IsFloat)
+            if ((container.DockState == DockState.Float) != IsFloat && (container.DockState == DockState.FloatDocument) != IsFloat)
                 throw new InvalidOperationException(Strings.DockPane_DockTo_InvalidContainer);
 
             int count = container.NestedPanes.Count;
@@ -1117,6 +1133,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
         public DockPane Float()
         {
+            //TODO: Check
             DockPanel.SuspendLayout(true);
 
             IDockContent activeContent = ActiveContent;
@@ -1223,7 +1240,7 @@ namespace WeifenLuo.WinFormsUI.Docking
             Size size;
 
             DockPane floatPane = ActiveContent.DockHandler.FloatPane;
-            if (DockState == DockState.Float || floatPane == null || floatPane.FloatWindow.NestedPanes.Count != 1)
+            if (DockState == DockState.Float || DockState == DockState.FloatDocument || floatPane == null || floatPane.FloatWindow.NestedPanes.Count != 1)
                 size = DockPanel.DefaultFloatWindowSize;
             else
                 size = floatPane.FloatWindow.Size;
@@ -1237,11 +1254,16 @@ namespace WeifenLuo.WinFormsUI.Docking
         public void FloatAt(Rectangle floatWindowBounds)
         {
             if (FloatWindow == null || FloatWindow.NestedPanes.Count != 1)
-                FloatWindow = DockPanel.FloatWindowFactory.CreateFloatWindow(DockPanel, this, floatWindowBounds);
+            {
+                if (DockState == DockState.FloatDocument)
+                    FloatWindow = DockPanel.FloatDocumentWindowFactory.CreateFloatDocumentWindow(DockPanel, this, floatWindowBounds);
+                else
+                    FloatWindow = DockPanel.FloatWindowFactory.CreateFloatWindow(DockPanel, this, floatWindowBounds);
+            }
             else
                 FloatWindow.Bounds = floatWindowBounds;
 
-            DockState = DockState.Float;
+            DockState = DockState == DockState.FloatDocument ? DockState.FloatDocument :  DockState.Float;
         }
 
         public void DockTo(DockPane pane, DockStyle dockStyle, int contentIndex)

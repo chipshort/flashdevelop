@@ -437,14 +437,14 @@ namespace WeifenLuo.WinFormsUI.Docking
             {
                 DockPane value = null;
 
-                if (ActivePane != null && ActivePane.DockState == DockState.Document)
+                if (ActivePane != null && (ActivePane.DockState == DockState.Document || ActivePane.DockState == DockState.FloatDocument))
                     value = ActivePane;
 
                 if (value == null && DockPanel.DockWindows != null)
                 {
                     if (ActiveDocumentPane == null)
                         value = DockPanel.DockWindows[DockState.Document].DefaultPane;
-                    else if (ActiveDocumentPane.DockPanel != DockPanel || ActiveDocumentPane.DockState != DockState.Document)
+                    else if (ActiveDocumentPane.DockPanel != DockPanel || (ActiveDocumentPane.DockState != DockState.Document && ActiveDocumentPane.DockState != DockState.FloatDocument))
                         value = DockPanel.DockWindows[DockState.Document].DefaultPane;
                     else
                         value = ActiveDocumentPane;

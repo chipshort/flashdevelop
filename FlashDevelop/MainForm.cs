@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -95,8 +96,10 @@ namespace FlashDevelop
         /* AppMan */
         private FileSystemWatcher amWatcher;
 
+        /* Basic editor behavior */
+        private IEditorController editorController;
+
         /* Components */
-        private QuickFind quickFind;
         private DockPanel dockPanel;
         private ToolStrip toolStrip;
         private MenuStrip menuStrip;
@@ -114,9 +117,6 @@ namespace FlashDevelop
         private OpenFileDialog openFileDialog;
         private SaveFileDialog saveFileDialog;
         private PrintPreviewDialog printPreviewDialog;
-        private FRInFilesDialog frInFilesDialog;
-        private FRInDocDialog frInDocDialog;
-        private GoToDialog gotoDialog;
         
         /* Settings */
         private SettingObject appSettings;
@@ -813,9 +813,6 @@ namespace FlashDevelop
         public void InitializeSmartDialogs()
         {
             this.formState = new FormState();
-            this.gotoDialog = new GoToDialog();
-            this.frInFilesDialog = new FRInFilesDialog();
-            this.frInDocDialog = new FRInDocDialog();
         }
 
         /// <summary>
@@ -984,8 +981,8 @@ namespace FlashDevelop
         /// </summary>
         private void InitializeComponents()
         {
-            this.quickFind = new QuickFind();
             this.dockPanel = new DockPanel();
+            this.editorController = new WinFormsEditorController(this);
             this.statusStrip = new StatusStrip();
             this.toolStripPanel = new ToolStripPanel();
             this.menuStrip = StripBarManager.GetMenuStrip(FileNameHelper.MainMenu);
@@ -1055,8 +1052,9 @@ namespace FlashDevelop
             //
             this.dockPanel.TabIndex = 2;
             this.dockPanel.DocumentStyle = DocumentStyle.DockingWindow;
-            this.dockPanel.DockWindows[DockState.Document].Controls.Add(this.quickFind);
+            this.dockPanel.DockWindows[DockState.Document].Controls.Add((Control)this.editorController.QuickFindControl);
             this.dockPanel.Dock = DockStyle.Fill;
+            this.dockPanel.Extender.FloatDocumentWindowFactory = new CustomFloatDocumentWindowFactory();
             this.dockPanel.Name = "dockPanel";
             //
             // toolStripStatusLabel
@@ -1122,7 +1120,7 @@ namespace FlashDevelop
         /// </summary>
         private void OnMainFormActivate(Object sender, System.EventArgs e)
         {
-            if (this.CurrentDocument == null) return;
+            if (this.CurrentDocument == null || ((TabbedDocument)this.CurrentDocument).Disposing || this.dockPanel.ActiveDocumentPane.IsFloat) return;
             this.CurrentDocument.Activate(); // Activate the current document
             ButtonManager.UpdateFlaggedButtons();
         }
@@ -1176,7 +1174,6 @@ namespace FlashDevelop
             /**
             * DockPanel events
             */
-            this.dockPanel.ActivePaneChanged += new EventHandler(this.OnActivePaneChanged);
             this.dockPanel.ActiveContentChanged += new EventHandler(this.OnActiveContentChanged);
             this.dockPanel.ActiveDocumentChanged += new EventHandler(this.OnActiveDocumentChanged);
             this.dockPanel.ContentRemoved += new EventHandler<DockContentEventArgs>(this.OnContentRemoved);
@@ -1308,14 +1305,6 @@ namespace FlashDevelop
         }
 
         /// <summary>
-        /// When dock changes, applies the padding to documents
-        /// </summary>
-        private void OnActivePaneChanged(Object sender, EventArgs e)
-        {
-            this.quickFind.ApplyFixedDocumentPadding();
-        }
-
-        /// <summary>
         /// When document is removed update tab texts
         /// </summary>
         public void OnContentRemoved(Object sender, DockContentEventArgs e)
@@ -1330,10 +1319,11 @@ namespace FlashDevelop
         {
             if (this.dockPanel.ActiveContent != null)
             {
-                if (this.dockPanel.ActiveContent.GetType() == typeof(TabbedDocument))
+                var document = this.dockPanel.ActiveContent as TabbedDocument;
+                if (document != null)
                 {
+                    if (document.Disposing) return;
                     this.panelIsActive = false;
-                    TabbedDocument document = (TabbedDocument)this.dockPanel.ActiveContent;
                     document.Activate();
                 }
                 else this.panelIsActive = true;
@@ -1350,9 +1340,9 @@ namespace FlashDevelop
         {
             try
             {
-                if (this.CurrentDocument == null) return;
+                if (this.CurrentDocument == null || ((TabbedDocument)this.CurrentDocument).Disposing) return;
                 this.OnScintillaControlUpdateControl(this.CurrentDocument.SciControl);
-                this.quickFind.CanSearch = this.CurrentDocument.IsEditable;
+                this.editorController.CanSearch = this.CurrentDocument.IsEditable;
                 /**
                 * Bring this newly active document to the top of the tab history
                 * unless you're currently cycling through tabs with the keyboard
@@ -1452,15 +1442,18 @@ namespace FlashDevelop
                     RecoveryManager.RemoveTemporaryFile(document.FileName);
                 }
             }
-            if (this.Documents.Length == 1 && document.IsUntitled && !document.IsModified && document.SciControl.Length == 0 && !e.Cancel && !this.closingForOpenFile && !this.restoringContents)
+            // React specially in case user tries to close every document in the main form
+            bool singleDocLeft = this.Documents.Count(t => !t.DockHandler.IsFloat) == 1 && !document.DockHandler.IsFloat;
+            if (singleDocLeft && !e.Cancel && !this.closingForOpenFile && !this.restoringContents)
             {
-                e.Cancel = true;
-            }
-            if (this.Documents.Length == 1 && !e.Cancel && !this.closingForOpenFile && !this.closingEntirely && !this.restoringContents)
-            {
-                NotifyEvent ne = new NotifyEvent(EventType.FileEmpty);
-                EventManager.DispatchEvent(this, ne);
-                if (!ne.Handled) this.SmartNew(null, null);
+                if (document.IsUntitled && !document.IsModified && document.SciControl.Length == 0) // Default empty new file. Avoid closing it
+                    e.Cancel = true;
+                else if (!this.closingEntirely) // FD doesn't let the doc area to be empty, create an empty file
+                {
+                    NotifyEvent ne = new NotifyEvent(EventType.FileEmpty);
+                    EventManager.DispatchEvent(this, ne);
+                    if (!ne.Handled) this.SmartNew(null, null);
+                }
             }
         }
 
@@ -1476,9 +1469,9 @@ namespace FlashDevelop
             if (this.appSettings.SequentialTabbing)
             {
                 if (TabbingManager.SequentialIndex == 0) this.Documents[0].Activate();
-                else TabbingManager.NavigateTabsSequentially(-1);
+                else TabbingManager.NavigateTabsSequentially(-1, true);
             }
-            else TabbingManager.NavigateTabHistory(0);
+            else TabbingManager.NavigateTabHistory(0, true);
             if (document.IsEditable && !document.IsUntitled)
             {
                 if (this.appSettings.RestoreFileStates) FileStateManager.SaveFileState(document);
@@ -1610,13 +1603,11 @@ namespace FlashDevelop
                 IntPtr hWnd = Win32.WindowFromPoint(new Point(x, y));
                 if (hWnd != IntPtr.Zero)
                 {
-                    ITabbedDocument doc = Globals.CurrentDocument;
-                    if (Control.FromHandle(hWnd) != null)
-                    {
-                        Win32.SendMessage(hWnd, m.Msg, m.WParam, m.LParam);
-                        return true;
-                    }
-                    else if (doc != null && doc.IsEditable && (hWnd == doc.SplitSci1.HandleSci || hWnd == doc.SplitSci2.HandleSci))
+                    // Makes some stuff, mainly native or the WB control, to behave better. Doesn't work nice with some dialogs tho
+                    IntPtr ancestorHwnd;
+
+                    if (Control.FromHandle(hWnd) != null || (ancestorHwnd = Win32.GetAncestor(hWnd, 3)) == this.Handle ||
+                        this.dockPanel.FloatWindows.FirstOrDefault(w => w.Handle == ancestorHwnd) != null)
                     {
                         Win32.SendMessage(hWnd, m.Msg, m.WParam, m.LParam);
                         return true;
@@ -1631,60 +1622,7 @@ namespace FlashDevelop
         /// </summary>
         protected override Boolean ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            /**
-            * Notify plugins. Don't notify ControlKey or ShiftKey as it polls a lot
-            */
-            KeyEvent ke = new KeyEvent(EventType.Keys, keyData);
-            Keys keyCode = keyData & Keys.KeyCode;
-            if ((keyCode != Keys.ControlKey) && (keyCode != Keys.ShiftKey))
-            {
-                EventManager.DispatchEvent(this, ke);
-            }
-            if (!ke.Handled)
-            {
-                /**
-                * Ignore basic control keys if sci doesn't have focus.
-                */ 
-                if (Globals.SciControl == null || !Globals.SciControl.IsFocus)
-                {
-                    if (keyData == (Keys.Control | Keys.C)) return false;
-                    else if (keyData == (Keys.Control | Keys.V)) return false;
-                    else if (keyData == (Keys.Control | Keys.X)) return false;
-                    else if (keyData == (Keys.Control | Keys.A)) return false;
-                    else if (keyData == (Keys.Control | Keys.Z)) return false;
-                    else if (keyData == (Keys.Control | Keys.Y)) return false;
-                }
-                /**
-                * Process special key combinations and allow "chaining" of 
-                * Ctrl-Tab commands if you keep holding control down.
-                */
-                if ((keyData & Keys.Control) != 0)
-                {
-                    Boolean sequentialTabbing = this.appSettings.SequentialTabbing;
-                    if ((keyData == (Keys.Control | Keys.Next)) || (keyData == (Keys.Control | Keys.Tab)))
-                    {
-                        TabbingManager.TabTimer.Enabled = true;
-                        if (keyData == (Keys.Control | Keys.Next) || sequentialTabbing)
-                        {
-                            TabbingManager.NavigateTabsSequentially(1);
-                        }
-                        else TabbingManager.NavigateTabHistory(1);
-                        return true;
-                    }
-                    if ((keyData == (Keys.Control | Keys.Prior)) || (keyData == (Keys.Control | Keys.Shift | Keys.Tab)))
-                    {
-                        TabbingManager.TabTimer.Enabled = true;
-                        if (keyData == (Keys.Control | Keys.Prior) || sequentialTabbing)
-                        {
-                            TabbingManager.NavigateTabsSequentially(-1);
-                        }
-                        else TabbingManager.NavigateTabHistory(-1);
-                        return true;
-                    }
-                }
-                return base.ProcessCmdKey(ref msg, keyData);
-            }
-            return true;
+            return this.editorController.ProcessCmdKey(keyData) ?? base.ProcessCmdKey(ref msg, keyData);
         }
 
         /// <summary>
@@ -2193,14 +2131,13 @@ namespace FlashDevelop
         public void CloseAllDocuments(Boolean exceptCurrent, Boolean exceptOtherPanes)
         {
             ITabbedDocument current = this.CurrentDocument;
-            DockPane currentPane = (current == null) ? null : current.DockHandler.PanelPane;
+            DockPane currentPane = current?.DockHandler.Pane;
             this.closeAllCanceled = false; this.closingAll = true;
             var documents = new List<ITabbedDocument>(Documents);
             foreach (var document in documents)
             {
-                Boolean close = true;
-                if (exceptCurrent && document == current) close = false;
-                if (exceptOtherPanes && document.DockHandler.PanelPane != currentPane) close = false;
+                bool close = !(exceptCurrent && document == current);
+                if (exceptOtherPanes && document.DockHandler.Pane != currentPane) close = false;
                 if (close) document.Close();
             }
             this.closingAll = false;
@@ -2227,9 +2164,9 @@ namespace FlashDevelop
                     ScintillaManager.ApplySciSettings(document.SplitSci2, true);
                 }
             }
-            this.frInFilesDialog.UpdateSettings();
             this.statusStrip.Visible = this.appSettings.ViewStatusBar;
             this.toolStrip.Visible = this.isFullScreen ? false : this.appSettings.ViewToolBar;
+            this.editorController.ApplyAllSettings();
             ButtonManager.UpdateFlaggedButtons();
             TabTextManager.UpdateTabTexts();
             ClipboardManager.ApplySettings();
@@ -2320,8 +2257,7 @@ namespace FlashDevelop
         /// </summary>
         public void SetFindText(Object sender, String text)
         {
-            if (sender != this.quickFind) this.quickFind.SetFindText(text);
-            if (sender != this.frInDocDialog) this.frInDocDialog.SetFindText(text);
+            this.editorController.SetFindText(sender, text);
         }
 
         /// <summary>
@@ -2329,8 +2265,7 @@ namespace FlashDevelop
         /// </summary>
         public void SetMatchCase(Object sender, Boolean matchCase)
         {
-            if (sender != this.quickFind) this.quickFind.SetMatchCase(matchCase);
-            if (sender != this.frInDocDialog) this.frInDocDialog.SetMatchCase(matchCase);
+            this.editorController.SetMatchCase(sender, matchCase);
         }
 
         /// <summary>
@@ -2338,8 +2273,7 @@ namespace FlashDevelop
         /// </summary>
         public void SetWholeWord(Object sender, Boolean wholeWord)
         {
-            if (sender != this.quickFind) this.quickFind.SetWholeWord(wholeWord);
-            if (sender != this.frInDocDialog) this.frInDocDialog.SetWholeWord(wholeWord);
+            this.editorController.SetWholeWord(sender, wholeWord);
         }
 
         #endregion
@@ -2950,8 +2884,7 @@ namespace FlashDevelop
         /// </summary>
         public void GoTo(Object sender, System.EventArgs e)
         {
-            if (!this.gotoDialog.Visible) this.gotoDialog.Show();
-            else this.gotoDialog.Activate();
+            this.editorController.ShowGoTo();
         }
 
         /// <summary>
@@ -2959,9 +2892,7 @@ namespace FlashDevelop
         /// </summary>
         public void FindNext(Object sender, System.EventArgs e)
         {
-            Boolean update = !Globals.Settings.DisableFindTextUpdating;
-            Boolean simple = !Globals.Settings.DisableSimpleQuickFind && !this.quickFind.Visible;
-            this.frInDocDialog.FindNext(true, update, simple);
+            this.editorController.FindNext();
         }
 
         /// <summary>
@@ -2969,9 +2900,7 @@ namespace FlashDevelop
         /// </summary>
         public void FindPrevious(Object sender, System.EventArgs e)
         {
-            Boolean update = !Globals.Settings.DisableFindTextUpdating;
-            Boolean simple = !Globals.Settings.DisableSimpleQuickFind && !this.quickFind.Visible;
-            this.frInDocDialog.FindNext(false, update, simple);
+            this.editorController.FindPrevious();
         }
 
         /// <summary>
@@ -2979,12 +2908,7 @@ namespace FlashDevelop
         /// </summary>
         public void FindAndReplace(Object sender, System.EventArgs e)
         {
-            if (!this.frInDocDialog.Visible) this.frInDocDialog.Show();
-            else
-            {
-                this.frInDocDialog.InitializeFindText();
-                this.frInDocDialog.Activate();
-            }
+            this.editorController.ShowFindAndReplace();
         }
 
         /// <summary>
@@ -2998,8 +2922,7 @@ namespace FlashDevelop
             {
                 OpenEditableDocument(file);
             });
-            if (!this.frInDocDialog.Visible) this.frInDocDialog.Show();
-            else this.frInDocDialog.Activate();
+            this.editorController.ShowFindAndReplace();
         }
 
         /// <summary>
@@ -3007,12 +2930,7 @@ namespace FlashDevelop
         /// </summary>
         public void FindAndReplaceInFiles(Object sender, System.EventArgs e)
         {
-            if (!this.frInFilesDialog.Visible) this.frInFilesDialog.Show();
-            else
-            {
-                this.frInFilesDialog.UpdateFindText();
-                this.frInFilesDialog.Activate();
-            }
+            this.editorController.ShowFindAndReplaceInFiles();
         }
 
         /// <summary>
@@ -3022,9 +2940,7 @@ namespace FlashDevelop
         {
             ToolStripItem button = (ToolStripItem)sender;
             String path = ((ItemData)button.Tag).Tag;
-            if (!this.frInFilesDialog.Visible) this.frInFilesDialog.Show(); // Show first..
-            else this.frInFilesDialog.Activate();
-            this.frInFilesDialog.SetFindPath(path);
+            this.editorController.ShowFindAndReplaceInFilesFrom(path);
         }
 
         /// <summary>
@@ -3032,7 +2948,7 @@ namespace FlashDevelop
         /// </summary>
         public void QuickFind(Object sender, System.EventArgs e)
         {
-            this.quickFind.ShowControl();
+            this.editorController.ShowQuickFind();
         }
 
         /// <summary>

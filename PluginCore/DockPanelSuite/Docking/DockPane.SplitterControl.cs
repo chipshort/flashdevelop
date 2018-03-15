@@ -34,7 +34,7 @@ namespace WeifenLuo.WinFormsUI.Docking
                     else
                         Cursor = Cursors.Default;
 
-                    if (DockPane.DockState == DockState.Document)
+                    if (DockPane.DockState == DockState.Document || DockPane.DockState == DockState.FloatDocument)
                         Invalidate();
                 }
             }
@@ -43,7 +43,7 @@ namespace WeifenLuo.WinFormsUI.Docking
             {
                 base.OnPaint(e);
 
-                if (DockPane.DockState != DockState.Document)
+                if (DockPane.DockState != DockState.Document && DockPane.DockState != DockState.FloatDocument)
                     return;
 
                 Graphics g = e.Graphics;

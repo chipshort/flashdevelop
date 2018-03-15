@@ -107,16 +107,41 @@ namespace ASCompletion.Completion
                 // implement interface
                 if (CanShowImplementInterfaceList(sci, position, resolve, found))
                 {
-                    contextParam = resolve.Type.Type;
+                    if (resolve.Type.QualifiedName.EndsWith('>'))
+                    {
+                        contextParam = resolve.Type.QualifiedName;
+                    }
+                    else if (!string.IsNullOrEmpty(resolve.Type.IndexType))
+                    {
+                        // NOTE: Context.ResolveType doesn't care about the number of generic types we have
+                        contextParam = resolve.Type.QualifiedName + "<" + resolve.Type.IndexType + ">";
+                    }
+                    else
+                    {
+                        contextParam = resolve.Type.Type;
+                    }
+
                     ShowImplementInterface(found, options);
                     return;
                 }
-                // promote to class var
-                if (!context.CurrentClass.IsVoid() && resolve.Member != null && (resolve.Member.Flags & FlagType.LocalVar) > 0)
+
+                if (resolve.Member != null && !ASContext.Context.CurrentClass.IsVoid())
                 {
-                    contextMember = resolve.Member;
-                    ShowPromoteLocalAndAddParameter(found, options);
-                    return;
+                    if ((resolve.Member.Flags & FlagType.LocalVar) > 0) // promote to class var
+                    {
+                        contextMember = resolve.Member;
+                        ShowPromoteLocalAndAddParameter(found, options);
+                        return;
+                    }
+                    if ((resolve.Member.Flags & (FlagType.Function | FlagType.Constructor)) >= (FlagType.Function | FlagType.Constructor))
+                    {
+                        if (PluginBase.CurrentProject.Language == "as3" || PluginBase.CurrentProject.Language == "haxe")
+                        {
+                            contextMatch = null;
+                            ShowExtractInterface(found, ReimplementExtractedAs3Interface, options);
+                            return;
+                        }
+                    }
                 }
             }
 
@@ -712,6 +737,12 @@ namespace ASCompletion.Completion
             options.Add(new GeneratorItem(label, GeneratorJobType.ConvertToConst, found.Member, found.InClass));
         }
 
+        private static void ShowExtractInterface(FoundDeclaration found, Action<ClassModel, ClassModel> callback, List<ICompletionListItem> options)
+        {
+            string label = "Extract Interface";
+            options.Add(new GeneratorItem(label, GeneratorJobType.ExtractInterface, null, found.InClass, callback));
+        }
+
         private static void ShowImplementInterface(FoundDeclaration found, ICollection<ICompletionListItem> options)
         {
             string label = TextHelper.GetString("ASCompletion.Label.ImplementInterface");
@@ -1270,6 +1301,22 @@ namespace ASCompletion.Completion
                         sci.EndUndoAction();
                     }
                     break;
+
+                case GeneratorJobType.ExtractInterface:
+                    sci.BeginUndoAction();
+                    try
+                    {
+                        // We are using data to store a delegate, of type Action<ClassModel> which will be used to reimplement the extracted interface
+                        // This way we open this generator to external implementations
+                        GenerateInterface(sci, inClass, data as Action<ClassModel, ClassModel>);
+                    }
+                    finally
+                    {
+                        sci.EndUndoAction();
+                    }
+
+                    break;
+
             }
         }
 
@@ -1418,10 +1465,10 @@ namespace ASCompletion.Completion
                 {
                     var characters = ScintillaControl.Configuration.GetLanguage(ctx.Settings.LanguageId.ToLower()).characterclass.Characters;
                     if (resolve.Path.All(it => characters.Contains(it)))
-                    {
+                {
                         if (inClass.InFile.haXe) type = "Class<Dynamic>";
                         else type = ctx.ResolveType("Class", resolve.InFile).QualifiedName;
-                    }
+                }
                 }
             }
 
@@ -1429,7 +1476,7 @@ namespace ASCompletion.Completion
             if (!string.IsNullOrEmpty(word) && char.IsDigit(word[0])) word = null;
             string varname = null;
             if (string.IsNullOrEmpty(type) && !resolve.IsNull())
-            {
+                {
                 if (resolve.Member?.Type != null) type = resolve.Member.Type;
                 else if (resolve.Type?.Name != null)
                 {
@@ -1439,7 +1486,7 @@ namespace ASCompletion.Completion
                 }
 
                 if (resolve.Member?.Name != null) varname = GuessVarName(resolve.Member.Name, type);
-            }
+                }
             if (!string.IsNullOrEmpty(word) && (string.IsNullOrEmpty(type) || Regex.IsMatch(type, "(<[^]]+>)"))) word = null;
             if (type == ctx.Features.voidKey) type = null;
             if (varname == null) varname = GuessVarName(word, type);
@@ -1467,8 +1514,8 @@ namespace ASCompletion.Completion
                 var inClassForImport = resolve.InClass ?? resolve.RelClass ?? inClass;
                 var types = GetQualifiedTypes(new [] {type}, inClassForImport.InFile);
                 AddImportsByName(types, sci.LineFromPosition(pos));
-            }
-        }
+                }
+                }
 
         public static string AvoidKeyword(string word)
         {
@@ -2957,6 +3004,111 @@ namespace ASCompletion.Completion
             EventManager.DispatchEvent(null, de);
         }
 
+        private static void GenerateInterface(ScintillaControl sci, ClassModel fromClass, Action<ClassModel, ClassModel> implementationCallback)
+        {
+            AddLookupPosition(); // remember last cursor position for Shift+F4
+
+            IProject project = PluginBase.CurrentProject;
+            string projFilesDir = Path.Combine(PathHelper.TemplateDir, "ProjectFiles");
+            string projTemplateDir = Path.Combine(projFilesDir, project.GetType().Name);
+            Hashtable info = new Hashtable();
+            if (project.Language == "as3") info["templatePath"] = Path.Combine(projTemplateDir, "Interface.as.fdt");
+            else if (project.Language.StartsWith("haxe")) info["templatePath"] = Path.Combine(projTemplateDir, "Interface.hx.fdt");
+            info["interfaceName"] = "I" + fromClass.Name;
+            info["inDirectory"] = Path.GetDirectoryName(fromClass.InFile.FileName);
+            info["fromClass"] = fromClass;
+            DataEvent de = new DataEvent(EventType.Command, "ProjectManager.CreateNewFile", info);
+            // Try in the handler of TextEvent te = new TextEvent(EventType.FileTemplate, newFilePath);
+            EventManager.DispatchEvent(null, de);
+            if (de.Handled)
+            {
+                // Now we're going to edit the original file so the interface is correctly implemented
+                // We check we did create a new interface and we're not on a virtual file
+                var resultModel = info["result"] as ClassModel;
+                if (resultModel == null || implementationCallback == null || string.IsNullOrEmpty(fromClass.InFile.FileName) || !File.Exists(fromClass.InFile.FileName))
+                    return;
+
+                implementationCallback(fromClass, resultModel);
+            }
+        }
+
+        private static void ReimplementExtractedAs3Interface(ClassModel fromClass, ClassModel newInterface)
+        {
+            ASContext.MainForm.OpenEditableDocument(fromClass.InFile.FileName);
+
+            var sci = ASContext.CurSciControl;
+            // We're going to replace the old declaration with a new one implementing our new interface
+            var classDeclaration = new StringBuilder();
+            int lineTo = fromClass.Members != null && fromClass.Members.Count > 0
+                                ? fromClass.Members[0].LineFrom
+                                : fromClass.LineTo;
+
+            for (int i = fromClass.LineFrom; i <= lineTo; i++)
+                classDeclaration.Append(sci.GetLine(i));
+
+            var declMatch = Regex.Match(classDeclaration.ToString(),
+                                        string.Format(
+                                            @"(?<head>class\s+{0}(\s+extends\s+\w+\s*?)?)(?<implements>\s+implements\s+(\w,?\s*?)+)?(?<tail>\s*{{)",
+                                            fromClass.Name));
+
+            if (!declMatch.Success) return;
+
+            var newImplements = new StringBuilder(" implements ");
+            // We're gonna check if any of the old interfaces should be replaced with the new one
+            if (fromClass.Implements != null)
+                foreach (var implement in fromClass.Implements)
+                {
+                    var implModel = ASContext.Context.ResolveType(implement, fromClass.InFile);
+                    if (implModel.Type == newInterface.Type) continue;  // It may be the same interface extended and overwritten through the dialog
+
+                    bool matches = false;
+                    if (newInterface.Implements != null)
+                    {
+                        foreach (var newImpl in newInterface.Implements)
+                        {
+                            var newImplModel = ASContext.Context.ResolveType(newImpl, newInterface.InFile);
+                            newImplModel.ResolveExtends();
+                            while (!newImplModel.IsVoid())
+                            {
+                                if (implModel.Type == newImplModel.Type)
+                                {
+                                    matches = true;
+                                    break;
+                                }
+                                newImplModel = newImplModel.Extends;
+                            }
+
+                        }
+                    }
+                    if (matches) continue;
+                    newImplements.Append(implement).Append(", ");
+                }
+
+            newImplements.Append(newInterface.Name);
+
+            string newDeclaration = declMatch.Groups["head"].Value + newImplements.ToString() + declMatch.Groups["tail"].Value;
+            int newPos = sci.CurrentPos + (sci.MBSafeTextLength(newDeclaration) - sci.MBSafeTextLength(declMatch.Value));
+            // NOTE: I am replacing every matching text on purpose
+            sci.SetText(sci.Text.Replace(declMatch.Value, newDeclaration));
+            sci.CurrentPos = newPos;
+            ASContext.Context.UpdateCurrentFile(false);
+
+            // We try to import the new interface in case it's in some other package
+            if (!ASContext.Context.IsImported(newInterface, ASContext.Context.CurrentLine))
+            {
+                int pos = sci.CurrentPos + InsertImport(newInterface, true);
+                sci.SetSel(pos, pos);
+                ASContext.Context.UpdateCurrentFile(false);
+            }
+            // If the user added new member we re-implement the interface
+            // NOTE: All the methods using this way of implementing interfaces and the like are wrong when it comes to private classes
+            ClassModel inClass = ASContext.Context.CurrentModel.GetPublicClass();
+            contextParam = newInterface.Type;
+            GenerateJob(GeneratorJobType.ImplementInterface, null, inClass, null, null);
+
+            ASContext.MainForm.OpenEditableDocument(newInterface.InFile.FileName);
+        }
+
         public static void GenerateExtractVariable(ScintillaControl sci, string newName)
         {
             string expression = sci.SelText.Trim(new char[] { '=', ' ', '\t', '\n', '\r', ';', '.' });
@@ -4419,7 +4571,18 @@ namespace ASCompletion.Completion
         /// <returns>Inserted characters count</returns>
         public static int InsertImport(MemberModel member, bool fixScrolling)
         {
-            ScintillaControl sci = ASContext.CurSciControl;
+            return InsertImport(ASContext.CurSciControl, member, fixScrolling);
+        }
+
+        /// <summary>
+        /// Add an 'import' statement in a document
+        /// </summary>
+        /// <param name="sci">The ScintillaControl instance hosting the document to modify</param>
+        /// <param name="member">Generates 'import {member.Type};'</param>
+        /// <param name="fixScrolling">Keep the editor view as if we didn't add any code in the file</param>
+        /// <returns>Inserted characters count</returns>
+        public static int InsertImport(ScintillaControl sci, MemberModel member, bool fixScrolling)
+        {
             FileModel cFile = ASContext.Context.CurrentModel;
             int position = sci.CurrentPos;
             int curLine = sci.LineFromPosition(position);
@@ -4441,7 +4604,7 @@ namespace ASCompletion.Completion
             {
                 foreach (InlineRange range in cFile.InlinedRanges)
                 {
-                    if (position > range.Start && position < range.End)
+                    if (position >= range.Start && position <= range.End)
                     {
                         line = sci.LineFromPosition(range.Start) + 1;
                         break;
@@ -4450,14 +4613,31 @@ namespace ASCompletion.Completion
             }
             int firstLine = line;
             bool found = false;
+            bool inComment = false;
             int packageLine = -1;
-            int indent = 0;
+            int indent = sci.GetLineIndentation(line);
             int skipIfDef = 0;
             var importComparer = new CaseSensitiveImportComparer();
             while (line < curLine)
             {
                 var txt = sci.GetLine(line++).TrimStart();
-                if (txt.StartsWith("package"))
+                // take comments into account
+                if (txt.IndexOf("/*") > -1)
+                {
+                    inComment = true;
+                }
+
+                if (inComment)
+                {
+                    if (txt.IndexOf("*/") > -1)
+                    {
+                        inComment = false;
+                        txt = txt.Substring(txt.IndexOf("*/") + 2).TrimStart();
+                    }
+                    else continue;
+                }
+
+                if (txt.StartsWithOrdinal("package"))
                 {
                     packageLine = line;
                     firstLine = line;
@@ -4507,7 +4687,7 @@ namespace ASCompletion.Completion
             sci.LineScroll(0, firstLine - sci.FirstVisibleLine + 1);
 
             ASContext.Context.RefreshContextCache(fullPath);
-            return sci.GetLine(line).Length;
+            return sci.MBSafeTextLength(statement);
         }
         #endregion
 
@@ -4646,6 +4826,7 @@ namespace ASCompletion.Completion
         EventMetatag,
         AssignStatementToVar,
         ChangeConstructorDecl,
+        ExtractInterface,
     }
 
     /// <summary>

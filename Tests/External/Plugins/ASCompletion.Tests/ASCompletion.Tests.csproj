@@ -96,6 +96,7 @@
   <ItemGroup>
     <Compile Include="ASCompletionTests.cs" />
     <Compile Include="Completion\ASCompleteTests.cs" />
+    <Compile Include="Completion\ASDocumentationTests.cs" />
     <Compile Include="Completion\ASGeneratorTests.cs" />
     <Compile Include="Generators\DocumentationGeneratorTests.cs" />
     <Compile Include="MainForm.cs">
@@ -933,6 +934,18 @@
     <EmbeddedResource Include="Test Files\generated\as3\BeforeGenerateFunction_1.as" />
     <EmbeddedResource Include="Test Files\generated\as3\AfterGenerateVariable_1.as" />
     <EmbeddedResource Include="Test Files\generated\as3\BeforeGenerateVariable_1.as" />
+    <EmbeddedResource Include="Test Files\generated\haxe\AfterInsertImport_commentedBlock.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\AfterInsertImport_compileDirectives.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\AfterInsertImport_empty.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\AfterInsertImport_emptyNoPackage.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\AfterInsertImport_normal.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\BeforeInsertImport_commentedBlock.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\BeforeInsertImport_compileDirectives.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\BeforeInsertImport_empty.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\BeforeInsertImport_emptyNoPackage.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\BeforeInsertImport_normal.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\AfterGenerateFunctionWithUnneededParenthesis.hx" />
+    <EmbeddedResource Include="Test Files\generated\haxe\BeforeGenerateFunctionWithUnneededParenthesis.hx" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\External\Plugins\AS2Context\AS2Context.csproj">

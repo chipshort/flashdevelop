@@ -112,7 +112,12 @@ namespace CodeRefactor.Provider
             return member;
         }
 
-        public static string GetRefactorTargetName(ASResult target) => GetRefactoringTarget(target).Name;
+        public static string GetRefactorTargetName(ASResult target)
+        {
+            var name = GetRefactoringTarget(target).Name;
+            int genericIndex = name.IndexOf('<');
+            return genericIndex > 0 ? name.Substring(0, genericIndex) : name;
+        }
 
         /// <summary>
         /// Retrieves the refactoring target based on the file.
@@ -314,9 +319,15 @@ namespace CodeRefactor.Provider
             else // type
             {
                 if (result.Type == null) return false;
-                if (result.Type.QualifiedName == target.Type.QualifiedName) return true;
-                return false;
+                return GetTypeQualifiedBaseName(result.Type) == GetTypeQualifiedBaseName(target.Type);
             }
+        }
+
+        private static string GetTypeQualifiedBaseName(ClassModel type)
+        {
+            if (type.InFile.Package == "") return type.BaseType;
+            if (type.InFile.Module == "" || type.InFile.Module == type.BaseType) return type.InFile.Package + "." + type.BaseType;
+            return type.InFile.Package + "." + type.InFile.Module + "." + type.BaseType;
         }
 
         /// <summary>
@@ -395,7 +406,7 @@ namespace CodeRefactor.Provider
             else
             {
                 target.Member = null;
-                config = new FRConfiguration(GetAllProjectRelatedFiles(project, onlySourceFiles, ignoreSdkFiles), GetFRSearch(type.Name, includeComments, includeStrings));
+                config = new FRConfiguration(GetAllProjectRelatedFiles(project, onlySourceFiles, ignoreSdkFiles), GetFRSearch(type.BaseType, includeComments, includeStrings));
             }
             config.CacheDocuments = true;
             FRRunner runner = new FRRunner();

@@ -78,7 +78,7 @@ namespace WeifenLuo.WinFormsUI.Docking
 
         public bool IsFloat
         {
-            get {   return DockState == DockState.Float;    }
+            get {   return DockState == DockState.Float || DockState == DockState.FloatDocument;    }
         }
 
         internal DockPane DefaultPane
