@@ -199,12 +199,12 @@ namespace PluginCore.Controls
             {
                 // check mouse over the editor
                 if ((position < 0) || simpleTip.Visible || errorTip.Visible || CompletionList.HasMouseIn) return;
-                Point mousePos = (PluginBase.MainForm as Form).PointToClient(Cursor.Position);
+                Point mousePos = Cursor.Position;//(PluginBase.MainForm as Form).PointToClient(Cursor.Position);
                 if (mousePos.X == lastMousePos.X && mousePos.Y == lastMousePos.Y)
                     return;
 
                 lastMousePos = mousePos;
-                Rectangle bounds = GetWindowBounds(sci);
+                Rectangle bounds = sci.RectangleToScreen(sci.Bounds);
                 if (!bounds.Contains(mousePos)) return;
 
                 // check no panel is over the editor
