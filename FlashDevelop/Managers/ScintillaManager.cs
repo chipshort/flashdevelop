@@ -301,7 +301,7 @@ namespace FlashDevelop.Managers
                 else if (useFolding) sci.SetMarginWidthN(FoldingMargin, ScaleArea(sci, 15));
                 else sci.SetMarginWidthN(FoldingMargin, ScaleArea(sci, 2));
 
-                sci.SetMarginWidthN(1, 0); //Inheritance Margin (see ASCompletion.PluginMain.Margin)
+                //sci.SetMarginWidthN(1, 0); //Inheritance Margin (see ASCompletion.PluginMain.Margin)
                 /**
                 * Adjust caret policy based on settings
                 */
