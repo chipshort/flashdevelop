@@ -1,5 +1,4 @@
 using System;
-using System.CodeDom;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -1111,7 +1110,7 @@ namespace ASCompletion
                 try
                 {
                     astCacheTimer.Stop();
-
+                    
                     foreach (var cls in obj.Classes)
                     {
                         var cached = astCache.GetCachedModel(cls);
@@ -1120,6 +1119,9 @@ namespace ASCompletion
                             foreach (var c in cached.ConnectedClassModels) //need to update all connected stuff
                                 astCache.MarkAsOutdated(c);
                     }
+
+                    var sci1 = DocumentManager.FindDocument(obj.FileName)?.SplitSci1;
+                    var sci2 = DocumentManager.FindDocument(obj.FileName)?.SplitSci2;
 
                     if (initializedCache) astCacheTimer.Start();
                 }
@@ -1275,10 +1277,9 @@ namespace ASCompletion
 
             // get word at mouse position
             int style = sci.BaseStyleAt(position);
-            if (!ASComplete.IsTextStyle(style))
-                return;
-            position = sci.WordEndPosition(position, true);
-            ASResult result = ASComplete.GetExpressionType(sci, position);
+            if (!ASComplete.IsTextStyle(style)) return;
+            position = ASComplete.ExpressionEndPosition(sci, position);
+            var result = ASComplete.GetExpressionType(sci, position, false, true);
 
             // set tooltip
             if (!result.IsNull())
@@ -1334,7 +1335,7 @@ namespace ASCompletion
                 char c = (char)sci.CharAt(pos);
                 if ((c == ',' || c == '(') && sci.BaseStyleAt(pos) == 0)
                     sci.Colourise(0, -1);
-                ASComplete.HandleFunctionCompletion(sci, false, true);
+                ASComplete.HandleFunctionCompletion(sci, false);
             }
         }
 
