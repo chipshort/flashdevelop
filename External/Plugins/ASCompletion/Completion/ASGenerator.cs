@@ -1388,7 +1388,7 @@ namespace ASCompletion.Completion
                     .Concat(ctx.Features.IncrementDecrementOperators)
                     .Concat(ctx.Features.BitwiseOperators)
                     .Concat(ctx.Features.BooleanOperators)
-                    .ToHashSet();
+                    .ToHashSet(StringComparer.Ordinal);
                 var sep = new[] {' '};
                 var isValid = new Func<ASExpr, bool>((c) => c.Separator.Contains(' ') 
                     && c.Separator.Split(sep, StringSplitOptions.RemoveEmptyEntries).Any(it => operators.Contains(it.Trim())));
