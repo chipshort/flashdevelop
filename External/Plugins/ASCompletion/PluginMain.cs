@@ -83,9 +83,10 @@ namespace ASCompletion
 
         readonly ASTCache astCache = new ASTCache();
         bool initializedCache;
-        bool cacheNeedsRecheck;
         IProject lastProject;
-        Timer astCacheTimer;
+        System.Threading.Timer astCacheTimer;
+        int astCacheTimerInterval = 500;
+
 
         #region Required Properties
 
@@ -171,7 +172,8 @@ namespace ASCompletion
         public void Dispose()
         {
             timerPosition.Enabled = false;
-            astCacheTimer.Enabled = false;
+            astCacheTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            astCacheTimer.Dispose();
             PathExplorer.StopBackgroundExploration();
             SaveSettings();
         }
@@ -274,16 +276,19 @@ namespace ASCompletion
 
                         if (settingObject.DisableInheritanceNavigation)
                         {
-                            astCacheTimer.Stop();
-                            astCache.Clear();
-                            foreach (var document in PluginBase.MainForm.Documents)
+                            astCacheTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                            astCache.StopAndClear(() =>
                             {
-                                if (!document.IsEditable) continue;
+                                foreach (var document in PluginBase.MainForm.Documents)
+                                {
+                                    if (!document.IsEditable) continue;
 
-                                //remove the markers
-                                UpdateMarkersFromCache(document.SplitSci1);
-                                UpdateMarkersFromCache(document.SplitSci2);
-                            }
+                                    //remove the markers
+                                    UpdateMarkersFromCache(document.SplitSci1);
+                                    UpdateMarkersFromCache(document.SplitSci2);
+                                }
+                            });
+                            
                         }
                         goto case EventType.SyntaxChange;
                     case EventType.SyntaxChange:
@@ -462,7 +467,6 @@ namespace ASCompletion
                             else if (command == "ASCompletion.PathExplorerFinished" && !initializedCache)
                             {
                                 UpdateCompleteCache();
-                                initializedCache = true;
                             }
                         }
                         // Create a fake document from a FileModel
@@ -492,8 +496,8 @@ namespace ASCompletion
                                 if (lastProject is Project)
                                     ((Project) lastProject).ClasspathChanged += Project_ClassPathChanged;
                                 initializedCache = false;
-                                astCacheTimer.Stop();
-                                astCache.Clear();
+                                astCacheTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                                astCache.StopAndClear(() => { });
                                 foreach (var document in PluginBase.MainForm.Documents)
                                 {
                                     if (!document.IsEditable) continue;
@@ -863,12 +867,7 @@ namespace ASCompletion
 
             //Cache update
             astCache.FinishedUpdate += UpdateOpenDocumentMarkers;
-            astCacheTimer = new Timer
-            {
-                AutoReset = false,
-                Enabled = false
-            };
-            astCacheTimer.Elapsed += AstCacheTimer_Elapsed;
+            astCacheTimer = new System.Threading.Timer(AstCacheTimer_Elapsed, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         #endregion
@@ -884,6 +883,7 @@ namespace ASCompletion
 
         void UpdateOpenDocumentMarkers()
         {
+            initializedCache = true;
             foreach (var document in PluginBase.MainForm.Documents)
             {
                 if (!document.IsEditable) continue;
@@ -1109,8 +1109,8 @@ namespace ASCompletion
             {
                 try
                 {
-                    astCacheTimer.Stop();
-                    
+                    astCacheTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
                     foreach (var cls in obj.Classes)
                     {
                         var cached = astCache.GetCachedModel(cls);
@@ -1123,7 +1123,7 @@ namespace ASCompletion
                     var sci1 = DocumentManager.FindDocument(obj.FileName)?.SplitSci1;
                     var sci2 = DocumentManager.FindDocument(obj.FileName)?.SplitSci2;
 
-                    if (initializedCache) astCacheTimer.Start();
+                    if (initializedCache) astCacheTimer.Change(astCacheTimerInterval, Timeout.Infinite);
                 }
                 catch
                 {
@@ -1169,14 +1169,14 @@ namespace ASCompletion
 
                 try
                 {
-                    astCacheTimer.Stop();
+                    astCacheTimer.Change(Timeout.Infinite, Timeout.Infinite);
 
                     foreach (var cls in obj.Classes)
                     {
                         astCache.MarkAsOutdated(cls);
                     }
 
-                    if (initializedCache) astCacheTimer.Start();
+                    if (initializedCache) astCacheTimer.Change(astCacheTimerInterval, Timeout.Infinite);
                 }
                 catch
                 {
@@ -1187,7 +1187,7 @@ namespace ASCompletion
             });
         }
 
-        void AstCacheTimer_Elapsed(object sender, ElapsedEventArgs e)
+        void AstCacheTimer_Elapsed(object state)
         {
             try
             {
@@ -1203,8 +1203,8 @@ namespace ASCompletion
         {
             try
             {
-                astCacheTimer.Stop();
-                if (initializedCache) astCacheTimer.Start();
+                astCacheTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                if (initializedCache) astCacheTimer.Change(astCacheTimerInterval, Timeout.Infinite);
             }
             catch
             {

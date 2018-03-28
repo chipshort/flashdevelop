@@ -28,12 +28,37 @@ namespace ASCompletion.Helpers
         readonly HashSet<ClassModel> unfinishedModels = new HashSet<ClassModel>(CacheHelper.classModelComparer);
 
         private int outdateUpdateCount;
+        private Action onAbort;
+        private bool isRunning = false;
+        readonly object runningSyncObj = new object();
 
         public CachedClassModel GetCachedModel(ClassModel cls)
         {
             CachedClassModel v;
             cache.TryGetValue(cls, out v);
             return v;
+        }
+
+        public void StopAndClear(Action callback)
+        {
+            lock (runningSyncObj)
+            {
+                if (isRunning)
+                {
+                    onAbort = () =>
+                    {
+                        Clear();
+                        callback();
+                        onAbort = null;
+                    };
+                }
+                else
+                {
+                    Clear();
+                    callback();
+                }
+            }
+                
         }
 
         public void Clear()
@@ -47,6 +72,8 @@ namespace ASCompletion.Helpers
 
         public void Remove(ClassModel cls)
         {
+            StartRunning();
+
             lock (cache)
             {
                 var cachedClassModel = GetCachedModel(cls);
@@ -75,6 +102,8 @@ namespace ASCompletion.Helpers
                 //remove cls itself
                 cache.Remove(cls);
             }
+
+            FinishedRunning();
         }
 
         public void MarkAsOutdated(ClassModel cls)
@@ -85,13 +114,15 @@ namespace ASCompletion.Helpers
 
         public void UpdateOutdatedModels()
         {
+            StartRunning();
+
+            HashSet<ClassModel> outdated = null;
             try
             {
                 var context = ASContext.GetLanguageContext(PluginBase.CurrentProject.Language);
                 if (context?.Classpath == null)
                     return;
-
-                HashSet<ClassModel> outdated;
+                
                 lock (outdatedModels)
                 {
                     outdated = new HashSet<ClassModel>(outdatedModels, outdatedModels.Comparer);
@@ -102,8 +133,13 @@ namespace ASCompletion.Helpers
 
                 Interlocked.Increment(ref outdateUpdateCount);
 
-                foreach (var cls in outdated)
+                ClassModel cls;
+                while (outdated.Count > 0)
                 {
+                    cls = outdated.First();
+
+                    if (ShouldAbort())
+                        return;
                     cls.ResolveExtends();
 
                     lock (cache)
@@ -124,6 +160,8 @@ namespace ASCompletion.Helpers
                                     //only update existing connections, so a removed class is not reintroduced
                                     UpdateClass(connection, cache);
                     }
+
+                    outdated.Remove(cls);
                 }
 
                 //for new ClassModels, we need to update everything in the list of classes that extend / implement something that does not exist
@@ -148,7 +186,11 @@ namespace ASCompletion.Helpers
             }
             catch (Exception)
             {
+                if (outdated != null)
+                    outdatedModels.UnionWith(outdated);
             }
+
+            FinishedRunning();
         }
 
         /// <summary>
@@ -156,6 +198,10 @@ namespace ASCompletion.Helpers
         /// </summary>
         public void UpdateCompleteCache()
         {
+            StartRunning();
+
+            var c = new Dictionary<ClassModel, CachedClassModel>(CacheHelper.classModelComparer);
+
             try
             {
                 var context = ASContext.GetLanguageContext(PluginBase.CurrentProject.Language);
@@ -166,11 +212,9 @@ namespace ASCompletion.Helpers
                     return;
                 }
 
-                var c = new Dictionary<ClassModel, CachedClassModel>(CacheHelper.classModelComparer);
-
                 foreach (MemberModel memberModel in context.GetAllProjectClasses())
                 {
-                    if (PluginBase.MainForm.ClosingEntirely)
+                    if (ShouldAbort() || PluginBase.MainForm.ClosingEntirely)
                         return; //make sure we leave if the form is closing, so we do not block it
 
                     var cls = GetClassModel(memberModel);
@@ -186,6 +230,8 @@ namespace ASCompletion.Helpers
             catch (Exception)
             {
             }
+
+            FinishedRunning();
         }
 
         internal HashSet<ClassModel> ResolveInterfaces(ClassModel cls)
@@ -205,6 +251,43 @@ namespace ASCompletion.Helpers
                     return set;
                 })
                 .Union(ResolveInterfaces(cls.Extends)).ToHashSet(CacheHelper.classModelComparer);
+        }
+
+        /// <summary>
+        /// Sets the <see cref="isRunning"/> flag.
+        /// </summary>
+        void StartRunning()
+        {
+            lock (runningSyncObj)
+                isRunning = true;
+        }
+
+        void FinishedRunning()
+        {
+            lock (runningSyncObj)
+            {
+                ShouldAbort();
+                isRunning = false;
+            }
+        }
+
+        /// <summary>
+        /// Checks whether the operation should be stopped and calls onAbort if necessary.
+        /// </summary>
+        /// <returns>True if the operation should be stopped, false if it should continue</returns>
+        bool ShouldAbort()
+        {
+            lock (runningSyncObj)
+            {
+                if (onAbort != null)
+                {
+                    isRunning = false;
+                    onAbort();
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
