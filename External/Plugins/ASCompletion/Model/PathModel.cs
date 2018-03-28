@@ -579,7 +579,11 @@ namespace ASCompletion.Model
             lock (lockObject)
             {
                 var fn = fileName.ToUpper();
-                OnFileRemove?.Invoke(files[fn]);
+                FileModel file;
+                if (files.TryGetValue(fn, out file))
+                {
+                    OnFileRemove?.Invoke(file);
+                }
                 files.Remove(fn);
             }
         }
